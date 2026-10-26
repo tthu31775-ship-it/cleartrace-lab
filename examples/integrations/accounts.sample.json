@@ -1,0 +1,77 @@
+[
+  {
+    "accountId": "sample-001",
+    "displayName": "示例账号甲",
+    "platform": "示例社区",
+    "postsCount": 180,
+    "followersCount": 25,
+    "followingCount": 90,
+    "accountAgeDays": 12,
+    "duplicateRatio": 0.82,
+    "burstRatio": 0.76,
+    "nightRatio": 0.42,
+    "avgIntervalSeconds": 28,
+    "relatedIds": [
+      "sample-002",
+      "sample-003"
+    ],
+    "textSamples": [
+      "这是用于接口联调的合成文本 1，不对应真实账号。"
+    ]
+  },
+  {
+    "accountId": "sample-002",
+    "displayName": "示例账号乙",
+    "platform": "示例社区",
+    "postsCount": 128,
+    "followersCount": 19,
+    "followingCount": 82,
+    "accountAgeDays": 18,
+    "duplicateRatio": 0.74,
+    "burstRatio": 0.68,
+    "nightRatio": 0.38,
+    "avgIntervalSeconds": 41,
+    "relatedIds": [
+      "sample-001"
+    ],
+    "textSamples": [
+      "这是用于接口联调的合成文本 2，不对应真实账号。"
+    ]
+  },
+  {
+    "accountId": "sample-003",
+    "displayName": "示例账号丙",
+    "platform": "示例社区",
+    "postsCount": 52,
+    "followersCount": 146,
+    "followingCount": 132,
+    "accountAgeDays": 620,
+    "duplicateRatio": 0.08,
+    "burstRatio": 0.12,
+    "nightRatio": 0.16,
+    "avgIntervalSeconds": 1800,
+    "relatedIds": [
+      "sample-001"
+    ],
+    "textSamples": [
+      "这是用于接口联调的合成文本 3，不对应真实账号。"
+    ]
+  },
+  {
+    "accountId": "sample-004",
+    "displayName": "示例账号丁",
+    "platform": "示例社区",
+    "postsCount": 36,
+    "followersCount": 87,
+    "followingCount": 64,
+    "accountAgeDays": 430,
+    "duplicateRatio": 0.05,
+    "burstRatio": 0.09,
+    "nightRatio": 0.12,
+    "avgIntervalSeconds": 3200,
+    "relatedIds": [],
+    "textSamples": [
+      "这是用于接口联调的合成文本 4，不对应真实账号。"
+    ]
+  }
+]

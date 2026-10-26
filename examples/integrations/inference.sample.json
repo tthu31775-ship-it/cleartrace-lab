@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "local-protocol-test",
+  "modelId": "external",
+  "accounts": [
+    {
+      "accountId": "sample-001",
+      "features": {
+        "postsCount": 180,
+        "followersCount": 25,
+        "followingCount": 90,
+        "accountAgeDays": 12,
+        "duplicateRatio": 0.82,
+        "burstRatio": 0.76,
+        "nightRatio": 0.42,
+        "avgIntervalSeconds": 28
+      },
+      "relatedIds": [
+        "sample-002",
+        "sample-003"
+      ],
+      "textSamples": [
+        "这是用于接口联调的合成文本 1，不对应真实账号。"
+      ]
+    }
+  ]
+}

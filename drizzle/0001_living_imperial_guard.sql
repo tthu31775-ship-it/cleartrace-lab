@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `model_version` text;

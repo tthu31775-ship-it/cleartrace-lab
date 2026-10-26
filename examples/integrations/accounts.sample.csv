@@ -1,0 +1,5 @@
+account_id,display_name,platform,posts_count,followers_count,following_count,account_age_days,duplicate_ratio,burst_ratio,night_ratio,avg_interval_seconds,related_ids,text_samples
+sample-001,示例账号甲,示例社区,180,25,90,12,0.82,0.76,0.42,28,sample-002;sample-003,"[""这是用于接口联调的合成文本 1，不对应真实账号。""]"
+sample-002,示例账号乙,示例社区,128,19,82,18,0.74,0.68,0.38,41,sample-001,"[""这是用于接口联调的合成文本 2，不对应真实账号。""]"
+sample-003,示例账号丙,示例社区,52,146,132,620,0.08,0.12,0.16,1800,sample-001,"[""这是用于接口联调的合成文本 3，不对应真实账号。""]"
+sample-004,示例账号丁,示例社区,36,87,64,430,0.05,0.09,0.12,3200,,"[""这是用于接口联调的合成文本 4，不对应真实账号。""]"

@@ -1,0 +1,48 @@
+name: Check and package
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleartrace-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Validate backend import and scoring rules
+        run: node scripts/test-backend.mjs
+      - name: Validate inference protocol example
+        run: python3 -m unittest discover -s examples/integrations -p 'test_*.py'
+      - name: Build website and server
+        run: npm run build
+      - name: Package the reviewed source commit
+        if: github.event_name != 'pull_request'
+        run: git archive --format=zip HEAD -o cleartrace-source.zip
+      - name: Upload source and build for release handoff
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleartrace-${{ github.sha }}
+          path: |
+            cleartrace-source.zip
+            dist/
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,3113 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "清源 ClearTrace API",
+    "version": "1.0.0",
+    "description": "Shared data/model integration contract. Application bearer tokens and Sites gateway access are separate. Browser calls use Sites sign-in plus application membership. Responses use {data}, except CSV export and this raw OpenAPI document. Synthetic examples and rule baseline are not trained-model evaluation results. InferenceRequest/InferenceResponse describe the external server protocol, not an endpoint hosted by ClearTrace."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Current Site origin"
+    }
+  ],
+  "security": [
+    {
+      "ApplicationBearer": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Service and database health",
+        "description": "",
+        "operationId": "get_health",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "database": {
+                          "type": "string"
+                        },
+                        "service": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "time": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "security": []
+      }
+    },
+    "/openapi": {
+      "get": {
+        "summary": "This OpenAPI document",
+        "description": "",
+        "operationId": "get_openapi",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "security": []
+      }
+    },
+    "/session": {
+      "get": {
+        "summary": "Current application identity",
+        "description": "",
+        "operationId": "get_session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      }
+    },
+    "/bootstrap": {
+      "get": {
+        "summary": "Dashboard and workspace data",
+        "description": "Requires a registered member or application token. Non-admin members receive an empty members array.",
+        "operationId": "get_bootstrap",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bootstrap"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "summary": "Summary metrics, trend and distribution",
+        "description": "",
+        "operationId": "get_dashboard",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "stats": {
+                          "type": "object",
+                          "properties": {}
+                        },
+                        "trend": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {}
+                          }
+                        },
+                        "distribution": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      }
+    },
+    "/datasets": {
+      "get": {
+        "summary": "List datasets",
+        "description": "",
+        "operationId": "get_datasets",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Dataset"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      },
+      "post": {
+        "summary": "Import alias",
+        "description": "Admin/editor only. Dry run defaults to true and returns 200 with valid=false for row-level errors. A valid commit returns 201; an invalid commit returns 400 without importing. Duplicate accountId values in the batch are deduplicated. Maximum full body 5 MiB and 1000 records. Same-name imports create subsequent dataset versions.",
+        "operationId": "post_datasets",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          },
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets/import": {
+      "post": {
+        "summary": "Validate or import CSV/JSON",
+        "description": "Admin/editor only. Dry run defaults to true and returns 200 with valid=false for row-level errors. A valid commit returns 201; an invalid commit returns 400 without importing. Duplicate accountId values in the batch are deduplicated. Maximum full body 5 MiB and 1000 records. Same-name imports create subsequent dataset versions.",
+        "operationId": "post_datasets_import",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          },
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets/{id}": {
+      "get": {
+        "summary": "Dataset with accounts",
+        "description": "",
+        "operationId": "get_datasets_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dataset": {
+                          "$ref": "#/components/schemas/Dataset"
+                        },
+                        "accounts": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Account"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update dataset metadata",
+        "description": "Admin/editor only.",
+        "operationId": "patch_datasets_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Dataset"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete unused dataset",
+        "description": "Admin only. Returns 409 if a task references the dataset.",
+        "operationId": "delete_datasets_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/accounts": {
+      "get": {
+        "summary": "Filter accounts",
+        "description": "Results are ordered by score then creation time; bounded limit, no offset pagination.",
+        "operationId": "get_accounts",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Account"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "datasetId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "riskLevel",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low",
+                "unscored"
+              ]
+            }
+          },
+          {
+            "name": "reviewStatus",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed",
+                "dismissed",
+                "unreviewed"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 1000
+            }
+          }
+        ]
+      }
+    },
+    "/accounts/{id}": {
+      "get": {
+        "summary": "Account evidence and review history",
+        "description": "",
+        "operationId": "get_accounts_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "account": {
+                          "$ref": "#/components/schemas/Account"
+                        },
+                        "reviews": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {}
+                          }
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/accounts/{id}/review": {
+      "post": {
+        "summary": "Record human review",
+        "description": "Admin/editor/reviewer only. Appends immutable review history and updates current review status.",
+        "operationId": "post_accounts_id_review",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Account"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/tasks": {
+      "get": {
+        "summary": "List recent tasks",
+        "description": "At most 200 recent tasks.",
+        "operationId": "get_tasks",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Task"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a queued task",
+        "description": "Admin/editor only. This creates a durable queue record; call /tasks/{id}/run to execute.",
+        "operationId": "post_tasks",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Task"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{id}": {
+      "get": {
+        "summary": "Task with its results",
+        "description": "",
+        "operationId": "get_tasks_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "task": {
+                          "$ref": "#/components/schemas/Task"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Account"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/tasks/{id}/run": {
+      "post": {
+        "summary": "Execute or retry a task",
+        "description": "Admin/editor only. Claims queued/failed tasks or a running task stale for over 5 minutes. Maximum 5 attempts. Completed tasks return their existing result. External model timeout is 20 seconds. No automatic cron scheduler.",
+        "operationId": "post_tasks_id_run",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Task"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/tasks/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a queued or failed task",
+        "description": "Admin/editor only. Other states return 409.",
+        "operationId": "post_tasks_id_cancel",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Task"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/tasks/{id}/export": {
+      "get": {
+        "summary": "Export completed task CSV",
+        "description": "Completed tasks only; CSV includes UTF-8 BOM and spreadsheet-formula escaping.",
+        "operationId": "get_tasks_id_export",
+        "responses": {
+          "200": {
+            "description": "CSV attachment",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/graph": {
+      "get": {
+        "summary": "Graph from dataset-local relatedIds",
+        "description": "Only imported relations within the selected nodes are shown. These relations alone do not establish coordinated activity.",
+        "operationId": "get_graph",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Graph"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "datasetId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "riskLevel",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low",
+                "unscored"
+              ]
+            }
+          },
+          {
+            "name": "reviewStatus",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed",
+                "dismissed",
+                "unreviewed"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 5,
+              "maximum": 100,
+              "default": 60
+            }
+          }
+        ]
+      }
+    },
+    "/logs": {
+      "get": {
+        "summary": "Recent audit trail",
+        "description": "At most 150 newest audit records.",
+        "operationId": "get_logs",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Log"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      }
+    },
+    "/integrations": {
+      "get": {
+        "summary": "Data/model interface status",
+        "description": "",
+        "operationId": "get_integrations",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Integration"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      },
+      "put": {
+        "summary": "Enable or disable external adapter",
+        "description": "Admin only. Service URL and secret are configured through server environment, never accepted from this endpoint.",
+        "operationId": "put_integrations",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Integration"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "externalEnabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "externalEnabled"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members": {
+      "get": {
+        "summary": "List members",
+        "description": "Admin only.",
+        "operationId": "get_members",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Member"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add member or update role by email",
+        "description": "Admin only. Does not send email or grant Sites gateway access. The owner/admin role cannot be changed here.",
+        "operationId": "post_members",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Member"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{id}": {
+      "delete": {
+        "summary": "Remove member",
+        "description": "Admin only. Admin cannot be deleted.",
+        "operationId": "delete_members_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    },
+    "/tokens": {
+      "get": {
+        "summary": "List token metadata",
+        "description": "Admin only. Never returns token plaintext or hashes.",
+        "operationId": "get_tokens",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Token"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create role-scoped application token",
+        "description": "Admin only. Plaintext token is returned once. Store securely, not in frontend or repository.",
+        "operationId": "post_tokens",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TokenCreated"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tokens/{id}": {
+      "delete": {
+        "summary": "Revoke application token",
+        "description": "Admin only. Revocation is immediate for subsequent requests.",
+        "operationId": "delete_tokens_id",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "revoked": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient role or membership"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "503": {
+            "description": "Dependency not configured"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Internal resource ID returned by this API, not external accountId."
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApplicationBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Role-scoped application token. Browser users may instead use Sites-provided authenticated identity and registered membership."
+      },
+      "SitesGateway": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "OAI-Sites-Authorization",
+        "description": "For a private Site, machine callers additionally need its platform-issued Bearer gateway token. Never a replacement for application authorization."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {}
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reviewer",
+              "viewer"
+            ]
+          },
+          "local": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ]
+      },
+      "Features": {
+        "type": "object",
+        "properties": {
+          "postsCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "followersCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "followingCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "accountAgeDays": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duplicateRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "burstRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "nightRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "avgIntervalSeconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "postsCount",
+          "followersCount",
+          "followingCount",
+          "accountAgeDays",
+          "duplicateRatio",
+          "burstRatio",
+          "nightRatio",
+          "avgIntervalSeconds"
+        ]
+      },
+      "InputAccount": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "displayName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "platform": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "postsCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "followersCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "followingCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "accountAgeDays": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duplicateRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "burstRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "nightRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "avgIntervalSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "relatedIds": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          "textSamples": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        },
+        "required": [
+          "accountId"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "accountId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "postsCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "followersCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "followingCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "accountAgeDays": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duplicateRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "burstRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "nightRatio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "avgIntervalSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "relatedIds": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          "riskScore": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low",
+              "unscored"
+            ]
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "dismissed",
+              "unreviewed"
+            ]
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "demo": {
+            "type": "boolean"
+          },
+          "modelVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "textSamples": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        },
+        "required": [
+          "id",
+          "accountId",
+          "displayName",
+          "platform",
+          "datasetId",
+          "postsCount",
+          "followersCount",
+          "followingCount",
+          "accountAgeDays",
+          "duplicateRatio",
+          "burstRatio",
+          "nightRatio",
+          "avgIntervalSeconds",
+          "relatedIds",
+          "riskScore",
+          "riskLevel",
+          "reviewStatus",
+          "reasons",
+          "createdAt",
+          "demo"
+        ]
+      },
+      "Dataset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "recordCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "demo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "datasetName": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "progress": {
+            "type": "number"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "processed": {
+            "type": "integer"
+          },
+          "suspectedCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "demo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TaskCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "datasetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "modelId": {
+            "type": "string",
+            "enum": [
+              "baseline-v1",
+              "external"
+            ],
+            "default": "baseline-v1"
+          },
+          "threshold": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 95,
+            "default": 65
+          }
+        },
+        "required": [
+          "name",
+          "datasetId"
+        ]
+      },
+      "ImportRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "default": "团队导入"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "json"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000000,
+            "description": "UTF-8 file content encoded as a JSON string; full HTTP body maximum 5 MiB, 1–1000 records."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "default": true
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "name",
+          "format",
+          "content"
+        ]
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "rows": {
+            "type": "integer"
+          },
+          "accepted": {
+            "type": "integer"
+          },
+          "duplicateCount": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "preview": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InputAccount"
+            }
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/Dataset"
+          }
+        },
+        "required": [
+          "valid",
+          "rows",
+          "accepted",
+          "duplicateCount",
+          "errors",
+          "preview"
+        ]
+      },
+      "ReviewRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "dismissed",
+              "pending"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "status",
+          "note"
+        ]
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reviewer",
+              "viewer"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "invited"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MemberRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 200
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "editor",
+              "reviewer",
+              "viewer"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "role"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reviewer",
+              "viewer"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "TokenRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "editor",
+              "reviewer",
+              "viewer"
+            ],
+            "default": "editor"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "TokenCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reviewer",
+              "viewer"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "token": {
+            "type": "string",
+            "description": "Secret returned once only; store securely."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "createdAt",
+          "token"
+        ]
+      },
+      "Integration": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "data",
+              "model",
+              "api"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "pending"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Graph": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "riskLevel": {
+                  "type": "string",
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low",
+                    "unscored"
+                  ]
+                },
+                "riskScore": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "accountId": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "weight": {
+                  "type": "number"
+                },
+                "type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "totalNodes": {
+            "type": "integer"
+          }
+        }
+      },
+      "Log": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "error"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Bootstrap": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "demo": {
+                "type": "boolean"
+              }
+            }
+          },
+          "stats": {
+            "type": "object",
+            "properties": {}
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "distribution": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dataset"
+            }
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            }
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Account"
+            }
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Log"
+            }
+          },
+          "integrations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Integration"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          },
+          "graph": {
+            "$ref": "#/components/schemas/Graph"
+          }
+        }
+      },
+      "InferenceRequest": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "const": "1.0",
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "modelId": {
+            "const": "external",
+            "type": "string"
+          },
+          "accounts": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "properties": {
+                "accountId": {
+                  "type": "string"
+                },
+                "features": {
+                  "$ref": "#/components/schemas/Features"
+                },
+                "relatedIds": {
+                  "type": "array",
+                  "maxItems": 100,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 128
+                  }
+                },
+                "textSamples": {
+                  "type": "array",
+                  "maxItems": 20,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              },
+              "required": [
+                "accountId",
+                "features"
+              ]
+            }
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "taskId",
+          "modelId",
+          "accounts"
+        ]
+      },
+      "InferenceResponse": {
+        "type": "object",
+        "properties": {
+          "modelVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "results": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "properties": {
+                "accountId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "reasons": {
+                  "type": "array",
+                  "maxItems": 20,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              },
+              "required": [
+                "accountId",
+                "score",
+                "reasons"
+              ]
+            }
+          }
+        },
+        "required": [
+          "modelVersion",
+          "results"
+        ]
+      }
+    }
+  }
+}
