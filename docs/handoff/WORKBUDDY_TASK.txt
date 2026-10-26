@@ -1,0 +1,79 @@
+请直接接手并完成清源 ClearTrace 的国内部署迁移，不给我学习计划，不重新生成一个相似网站，也不要只写方案后停下。
+
+一、项目与目标
+当前项目是完整的网络水军候选行为研判工作台。
+公开仓库：https://github.com/tthu31775-ship-it/cleartrace-lab
+原站：https://cleartrace-lab.orionkayaking.chatgpt.site
+已验收业务基线：0b7de60df40ab4bb9a8d34641abb2927a45ce7da。
+原站仍是 Sites/Cloudflare Workers/D1 版本。当前交接没有实现或部署 Node 版本，不要把原站的测试通过当成迁移已通过。
+
+目标是在现有代码上完成普通 Linux 云服务器可部署版本。默认保留 React、TypeScript、Vinext，使用 Node standalone、单机持久 SQLite、独立账号登录和 Docker Compose。域名与 HTTPS 由 Caddy 或服务器已有 Nginx 处理。已有服务器优先；没有服务器时先把本地迁移、容器和部署文件全部完成，再列出真正缺少的资源信息。不要购买或重建云资源。
+
+二、先读哪些文件
+按顺序读取：
+1. AGENTS.md 和 README.md。
+2. docs/handoff/README.md。
+3. docs/handoff/DEVELOPMENT.md。
+4. docs/handoff/CHINA_DEPLOYMENT.md。
+5. docs/handoff/ACCEPTANCE.md。
+6. docs/API.md、docs/openapi.json、lib/contracts.ts。
+7. package.json、package-lock.json、vite.config.ts、next.config.ts。
+8. lib/server/db.ts、auth.ts、service.ts、model.ts、seed.ts，以及 app/api/v1/[...path]/route.ts。
+9. db/schema.ts、drizzle/、现有测试和 examples/integrations/。
+
+确认当前源码是否在基线之后已有新改动；保留组员工作，记录差异，不强制回退。使用 deploy/cn-node 分支，已有该分支则核对后继续。若我提供的是不含.git的ZIP，先完成本地工作；推送时基于正式远程历史创建分支并应用已审阅的改动，不强制覆盖main。
+
+三、已核实的迁移基础
+锁定 vinext@1.0.0-beta.5 自带 Node prod-server 和 standalone。
+其 build CLI 支持 --mode；不能照抄 build --config、build --standalone 或 build --platform=node。
+请在 vite.config.ts 新增 mode==="node" 的分支，使用 vinext({nextConfig:{output:"standalone"}}) 并完成运行环境模块选择；该分支不加载 sites()、connectorPreview()、cloudflare()。
+完成适配后，生产构建方式为：
+node node_modules/vinext/dist/cli.js build --mode node
+Node入口：
+node dist/standalone/server.js
+当前代码尚没有这个分支。standalone读取PORT和HOST，不会自动读取任意.env文件。
+当前 npm start 是 wrangler dev --local，不能把它当普通服务器的生产启动。
+
+四、实际要改什么
+1. 提取平台运行环境与数据库公共接口，Node从process.env读取配置并连接本机SQLite。Node产物不能依赖cloudflare:workers、D1绑定或Sites连接器。
+2. 主业务直接调用D1 prepare/bind/first/all/run/batch，不能只换db/index.ts的Drizzle驱动。适配器必须保持all().results、run().meta.changes和batch原子回滚语义，batch不能写成Promise.all。任务领取需要真实受影响行数。
+3. 保留原九张业务表与两份历史迁移；增加Node迁移台账和新的认证迁移，不改写已应用SQL。
+   每份迁移SQL与台账同事务提交；better-sqlite3事务回调不要使用async/await。保留settings.seed_version，新正式版默认不自动填样例，显式seed保持幂等。
+4. 独立登录使用管理员创建账号或一次性激活、合格密码散列、服务端会话、登录/退出/失效/密码重置。保持admin/editor/reviewer/viewer。生产不使用固定开发管理员，不信任客户端oai-authenticated-user-*头，不因某个邮箱字符串自动授予管理员。
+5. Cookie使用HttpOnly、生产Secure和明确SameSite/过期策略，写请求有CSRF和origin校验；保留API Token签发/撤销/角色。不能把管理员Token长期放浏览器localStorage，也不能用原Token SHA-256函数直接保存密码。
+6. 改实际页面的ChatGPT登录链接、Sites共享授权提示；保留现有八模块、风格、字号、图谱、导入预览、任务、复核、导出、移动端与错误状态。
+7. 保持/api/v1路径、请求/返回和数据模型兼容；新增认证接口同步OpenAPI。
+8. 正式站默认不自动塞入样例；提供显式demo seed。只用明确标注的合成样例测试。
+9. 保留外部模型协议、20秒超时和失败行为。当前MODEL_SERVICE_URL只支持公开HTTPS；如需要Docker内网模型，新增受部署者控制的固定地址策略并验证，不能直接删除全部地址限制。
+10. 处理HTTPS代理后的外部origin与信任边界，配置准确Host和X-Forwarded-Proto。可以使用锁定Vinext提供的VINEXT_TRUST_PROXY和VINEXT_TRUSTED_HOSTS，但Node只能由可信代理访问。不能删掉verifyOrigin来让POST勉强成功。
+11. 提供Dockerfile、Compose、代理配置、环境变量示例、持久数据卷、迁移/初始化/备份/恢复工具和真实可执行部署说明。原生SQLite依赖在目标Linux架构构建；数据库/密钥/备份不进镜像或公开Git。
+12. 在GitHub保留原检查并增加Node生产构建与回归、发布产物。明确区分CI通过与服务器已部署。
+
+五、旧站数据
+先判断我是否需要保留旧站已有数据；不能默认清空。
+本地D1占位ID、.wrangler/state、bootstrap列表和任务CSV都不是线上全量备份。
+需要保留时，取得有权限的完整导出，记录九张表的行数/主键/外键/校验值，在隔离库导入验证。保留历史审计与模型版本，重新建立成员凭证映射，旧会话不迁移，接口令牌安排撤销/重签。没有生产导出权限时继续完成代码与空库验收，只把“旧数据导入”列为阻塞；不要谎称已迁移。
+旧站保留为独立回退入口；不要修改原Sites项目ID、删除旧站或改变其访问范围。
+保留旧members.user_id时，成员active/invited状态必须改为依据新凭证/激活状态，不能让旧Sites ID冒充已激活本地账号。正式切换后旧站停止业务写入；新站产生增量后，回退先保存和核对这些记录，不只切回旧库。
+
+六、按阶段交付并实际执行
+A. 核对基线，复现已有类型检查、11项核心测试和8项协议测试。
+B. 完成Node运行、SQLite事务适配与迁移；先跑生产模式的health和SQL读写。
+C. 完成独立会话与角色；未登录401、越权403、伪造Sites身份头无效、撤销会话/令牌立即失效。
+D. 完整跑导入预览、正式入库、创建任务、执行、复核、图谱、导出、错误与重试；固定样例的分数与基线一致。
+E. 容器化并验证重建后数据不丢、备份可恢复，桌面与手机主要流程可用。
+F. 如果我已提供现有服务器、域名和所需部署访问，按授权完成部署、HTTPS与实际业务验收。缺少这些输入时，完成A–E和所有部署准备，最后一次性告诉我缺哪几项，不要在任务开始时反复确认。
+
+若想用WorkBuddy自带“网站应用/云服务”托管，可先核实当前项目的API、事务、登录、持久存储、地域和数据导出兼容性。不能把静态轻量发布当成完整系统；若能力不匹配，继续默认Linux Compose路线。不要擅自升级付费套餐。
+
+七、验收和最终给我的东西
+逐项完成docs/handoff/ACCEPTANCE.md并填实测结果。旧14项回归要适配新认证，不把测试安全限制直接删掉去碰生产库。生产写入只用明确测试数据并记录清理。
+给我：
+- 修改源码和Git提交/PR。
+- 实际可运行的本地Node与Docker版本。
+- 真实环境变量清单，不含秘密。
+- 迁移、管理员初始化、部署、更新、备份、恢复的准确命令。
+- 有服务器时给真实网址、镜像/版本和HTTPS业务验收；无服务器时准确标记待部署。
+- 实际通过/失败的验收记录、已知限制、后续组员如何上传推送发布。
+全过程保留已有项目成果，具体解释你发现和修复了什么，不要虚构测试或部署结果。
+

@@ -33,3 +33,11 @@
 ## 发布
 
 GitHub 推送触发检查与打包。Sites 发布按 `docs/DEPLOYMENT.md` 执行，并验证实际部署结果。GitHub 仓库权限、Sites 编辑权限、网站访问权限与应用角色分别管理。不要把 GitHub CI 通过描述为网站已经发布。
+
+## WorkBuddy 国内部署迁移
+
+用户已要求把当前项目交给 WorkBuddy，继续适配国内站点。先读取 `docs/handoff/README.md`、`DEVELOPMENT.md`、`CHINA_DEPLOYMENT.md` 与 `ACCEPTANCE.md`，在 `deploy/cn-node` 功能分支保留现有业务与界面，新增 Node/SQLite/独立登录和容器部署能力。
+
+这项迁移允许新增普通 Linux 服务器部署目标；前述保留 Sites 项目的要求用于保护旧站身份，不表示禁止国内自托管。默认 Sites 构建路径与 `.openai/hosting.json` 保留，迁移验证期间不覆盖或删除旧站。没有服务器信息时先完成本地迁移与容器交付；已有授权服务器时继续部署并记录真实结果。
+
+当前交接只新增文档，Node 目标、登录与 Docker 配置尚未实现。不能把拟新增脚本当作现有命令，也不能把 Sites 验收记录复制成国内版本已通过。后续以实际源码和实测更新状态。

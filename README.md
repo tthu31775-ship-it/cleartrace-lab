@@ -7,6 +7,9 @@
 - 接口规范：[docs/openapi.json](docs/openapi.json)
 - 项目分工与交接：[docs/TEAM_HANDOFF.md](docs/TEAM_HANDOFF.md)
 - 部署和更新：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- WorkBuddy 开发与国内迁移交接：[docs/handoff/README.md](docs/handoff/README.md)
+
+国内部署交接包含完整开发说明、按文件划分的迁移任务、执行提示词、配置契约与验收表。当前业务代码仍为 Sites 版本，普通 Node / Docker 版本由 WorkBuddy 按交接继续实现。
 
 ## 当前交付
 
