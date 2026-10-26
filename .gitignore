@@ -50,3 +50,6 @@ __pycache__/
 
 # Sanitized environment documentation
 !.env.example
+
+# 自建部署运行期配置(不含秘密模板)
+selfhost.env

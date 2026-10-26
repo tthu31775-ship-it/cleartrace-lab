@@ -8,6 +8,12 @@ export interface RuntimeEnv {
     INTEGRATION_API_TOKEN?: string;
     MODEL_SERVICE_URL?: string;
     MODEL_API_KEY?: string;
+    ADMIN_EMAIL?: string;
+    ADMIN_PASSWORD?: string;
+    SESSION_TTL_SECONDS?: string;
+    APP_ORIGIN?: string;
+    TRUST_IDENTITY_HEADERS?: string;
+    SEED_DEMO_DATA?: string;
 }
 export function runtime() { return env as unknown as RuntimeEnv; }
 export function database() { const db = runtime().DB; if (!db)
@@ -23,7 +29,7 @@ export function account(r: Row): Account { return { id: String(r.id), accountId:
 export function dataset(r: Row): Dataset { return { id: String(r.id), name: String(r.name), source: String(r.source), format: String(r.format), version: String(r.version), description: String(r.description || ''), recordCount: Number(r.record_count), status: 'ready', demo: !!r.demo, createdAt: String(r.created_at) }; }
 export function task(r: Row): Task { return { id: String(r.id), name: String(r.name), datasetId: String(r.dataset_id), datasetName: String(r.dataset_name || ''), modelId: String(r.model_id), modelName: r.model_id === 'baseline-v1' ? '行为规则基线' : '外部算法模型', threshold: Number(r.threshold), status: r.status as Task['status'], total: Number(r.total), processed: Number(r.processed), progress: Number(r.total) ? Math.round(Number(r.processed) / Number(r.total) * 100) : 0, suspectedCount: Number(r.suspected_count), attempt: Number(r.attempt), createdAt: String(r.created_at), startedAt: r.started_at ? String(r.started_at) : null, completedAt: r.completed_at ? String(r.completed_at) : null, error: r.error ? String(r.error) : null, demo: !!r.demo }; }
 export function log(r: Row): Log { return { id: String(r.id), actor: String(r.actor), action: String(r.action), target: String(r.target), status: r.status as Log['status'], detail: String(r.detail), createdAt: String(r.created_at) }; }
-export function member(r: Row): Member { return { id: String(r.id), email: String(r.email), name: String(r.name), role: r.role as Role, status: r.user_id ? 'active' : 'invited', createdAt: String(r.created_at) }; }
+export function member(r: Row): Member { return { id: String(r.id), email: String(r.email), name: String(r.name), role: r.role as Role, status: r.password_hash && r.activated_at ? 'active' : 'invited', createdAt: String(r.created_at) }; }
 export async function audit(db: D1Database, user: {
     id: string;
     name: string;
