@@ -61,3 +61,8 @@ selfhost.env
 /lib/data/coordination.json
 /lib/data/graphs.json
 /lib/data/douyin-sample.json
+
+# 推送凭据兜底(正常情况不在仓库内)
+/.push-credential
+push-credential
+*.token
