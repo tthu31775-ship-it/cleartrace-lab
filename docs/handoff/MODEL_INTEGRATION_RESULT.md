@@ -284,3 +284,19 @@ curl -H "Authorization: Bearer ct_xxx" \
 
 验收补 3 项(按批次取线索 803 行、按数据集取评论 231 行、按数据集取账号 80 行),线上 **93/93 通过**。
 
+---
+
+## 17. 代码推送记录
+
+| 项 | 值 |
+| --- | --- |
+| 仓库 | https://github.com/tthu31775-ship-it/cleartrace-lab |
+| 分支 | `feat/model-integration` |
+| 提交 | `08ccfb1` 主功能 → `b13c888` 验收修正 → `44512d4` 数据集类型 → `9a1ed83` 数据集下载 → `fcc506a` 推送文档 |
+| PR | https://github.com/tthu31775-ship-it/cleartrace-lab/pull/1 |
+| 规模 | 7 个提交、+8,092 / −51、59 个文件（含 6 张本地截图与 4 张线上截图） |
+| 合并状态 | 可自动合并，未合并（等团队 review） |
+
+**令牌不进仓库**：GitHub 的 PAT 只保存在本机 `ct/.push-credential`（仓库之外，`chmod 600`），
+推送脚本 `scripts/push-to-github.sh` 从环境变量取用。原因与轮换步骤见 `docs/handoff/PUSH.md`。
+
