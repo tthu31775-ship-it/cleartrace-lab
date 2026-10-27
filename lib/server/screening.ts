@@ -73,7 +73,7 @@ function commentRow(r: Row): CommentRecord {
 export async function importDouyinSample(db: D1Database, user: User) {
     const stamp = now();
     const statements: D1PreparedStatement[] = [];
-    statements.push(db.prepare('INSERT OR IGNORE INTO datasets(id,name,source,format,version,description,record_count,demo,created_at,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(
+    statements.push(db.prepare("INSERT OR IGNORE INTO datasets(id,name,source,format,version,description,record_count,kind,demo,created_at,created_by) VALUES(?,?,?,?,?,?,?,'douyin',?,?,?)").bind(
         DOUYIN_DATASET_ID, '抖音公开评论区小样本', '抖音网页版公开评论区', 'csv', DOUYIN_BATCH,
         '5 个作品、231 条评论、215 个账号的自采样本。发布时间为相对时间推算的近似值;点赞全为 0,不作为账号画像特征;IP 属地不是网络 IP。',
         sample.counts.comments, 0, stamp, user.id,

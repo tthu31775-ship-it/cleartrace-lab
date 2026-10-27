@@ -138,7 +138,7 @@ export async function ensureCoordinationSeed(db: D1Database) {
     }
 
     if (commentValues.length) {
-        statements.push(db.prepare('INSERT OR IGNORE INTO datasets(id,name,source,format,version,description,record_count,demo,created_at,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)')
+        statements.push(db.prepare("INSERT OR IGNORE INTO datasets(id,name,source,format,version,description,record_count,kind,demo,created_at,created_by) VALUES(?,?,?,?,?,?,?,'coordination',?,?,?)")
             .bind('dataset-coordination-20261023', '协同线索预计算批次', '算法包 coordination 输出', 'jsonl',
                 COORDINATION_VERSION, '803 组线索 / 173 个事件 / 7355 条线索评论,来自算法包离线扫描输出;清洗口径为离线版(341 项短句词典未随包交付)。',
                 seed.leads.reduce((sum, lead) => sum + lead.comments.length, 0), 0, stamp, 'algorithm-package'));

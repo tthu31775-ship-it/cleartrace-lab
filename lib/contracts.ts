@@ -9,6 +9,7 @@ export interface User {
     role: Role;
     local?: boolean;
 }
+export type DatasetKind = 'accounts' | 'douyin' | 'coordination';
 export interface Dataset {
     id: string;
     name: string;
@@ -17,9 +18,18 @@ export interface Dataset {
     version: string;
     status: 'ready';
     recordCount: number;
+    kind: DatasetKind;
     createdAt: string;
     description: string;
     demo: boolean;
+}
+export interface DatasetOverview {
+    label: string;
+    unit: string;
+    primary: number;
+    items: { label: string; value: string }[];
+    note: string;
+    cta: { label: string; page: 'accounts' | 'screening' | 'leads' } | null;
 }
 export interface Account {
     id: string;

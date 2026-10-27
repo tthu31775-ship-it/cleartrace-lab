@@ -312,6 +312,25 @@ check('全库备份可下载', status == 200 and payload(raw).get('format') == '
 status, _, raw, _ = call('GET', '/exports/backup', auth=False)
 check('未登录不能下全库备份', status == 401, str(status))
 
+print('\n[11] 数据集类型与预览')
+status, _, raw, _ = call('GET', '/datasets')
+datasets = {row['id']: row for row in payload(raw).get('data', [])}
+check('数据集列表带类型', all('kind' in row for row in datasets.values()), str(len(datasets)))
+status, _, raw, _ = call('GET', '/datasets/dataset-coordination-20261023')
+detail = payload(raw).get('data', {})
+check('线索型数据集:标 803 组线索', detail.get('dataset', {}).get('kind') == 'coordination' and detail.get('overview', {}).get('primary') == 803, str(detail.get('overview', {}).get('primary')))
+check('线索型有线索预览', len(detail.get('leads', [])) > 0, str(len(detail.get('leads', []))))
+check('线索型不给账号预览', len(detail.get('accounts', [])) == 0)
+status, _, raw, _ = call('GET', '/datasets/dataset-douyin-20261022')
+detail = payload(raw).get('data', {})
+check('评论型数据集:标 231 条评论', detail.get('dataset', {}).get('kind') == 'douyin' and detail.get('overview', {}).get('primary') == 231, str(detail.get('overview', {}).get('primary')))
+check('评论型有评论预览', len(detail.get('comments', [])) > 0, str(len(detail.get('comments', []))))
+check('评论型标注近似时间', any(item['value'].startswith('近似') for item in detail.get('overview', {}).get('items', []) if item['label'] == '时间精度'))
+status, _, raw, _ = call('GET', '/datasets/demo-dataset-1')
+detail = payload(raw).get('data', {})
+check('账号型数据集:有账号预览', detail.get('dataset', {}).get('kind') == 'accounts' and len(detail.get('accounts', [])) > 0)
+check('账号型 CTA 指向摸排任务', detail.get('overview', {}).get('cta', {}).get('page') == 'accounts')
+
 passed = sum(1 for ok, _, _ in results if ok)
 failed = len(results) - passed
 print(f'\n合计:通过 {passed} / 失败 {failed}')

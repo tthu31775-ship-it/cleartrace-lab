@@ -7,6 +7,7 @@ import { ensureCoordinationSeed, exportLeads, getEvent, getEventGraph, getLead, 
 import { douyinStatus, importDouyinSample, listComments, listPredictions, modelStatus, screenComments } from '@/lib/server/screening';
 import { scanCoordinationEvent } from '@/lib/server/scan';
 import { exportBackup, exportSchema, exportSummary, exportTable, EXPORT_KEYS } from '@/lib/server/exports';
+import { ensureDatasetKinds, getDatasetDetail } from '@/lib/server/dataset-detail';
 import { predictComment, predictCommentBatch, WB01_MAX_BATCH, WB01_MAX_LENGTH, wb01ModelInfo } from '@/lib/core/wb01';
 import { bootstrap, createTask, exportTask, getAccount, getAccounts, getDatasets, getIntegrations, getLogs, getMembers, getTask, getTasks, graphOf, importDataset, runTask } from '@/lib/server/service';
 import { ImportError } from '@/lib/core/import';
@@ -106,6 +107,7 @@ async function handle(request: Request, context: {
         if (seedFlag !== 'false' && seedFlag !== '0') {
             await ensureSeed(db);
             await ensureCoordinationSeed(db);
+            await ensureDatasetKinds(db);
         }
         if (method === 'GET' && key === 'bootstrap')
             return json(await bootstrap(db, user));
@@ -126,8 +128,12 @@ async function handle(request: Request, context: {
             const found = await first(db, 'SELECT * FROM datasets WHERE id=?', path[1]);
             if (!found)
                 throw new ApiProblem(404, 'dataset_not_found', '数据集不存在');
-            if (method === 'GET')
-                return json({ dataset: dataset(found), accounts: await getAccounts(db, new URLSearchParams({ datasetId: path[1] })) });
+            if (method === 'GET') {
+                const detail = await getDatasetDetail(db, path[1]);
+                if (!detail)
+                    throw new ApiProblem(404, 'dataset_not_found', '数据集不存在');
+                return json(detail);
+            }
             if (method === 'PATCH') {
                 authorize(user, ['admin', 'editor']);
                 const body = z.object({ name: text.optional(), description: z.string().max(1000).optional() }).parse(await readBody(request));
