@@ -161,6 +161,28 @@ const SPECS: Record<string, Spec> = {
 
 export const EXPORT_KEYS = Object.keys(SPECS);
 
+/** 表级过滤:支持按数据集、批次、运行批次导出子集,供数据集页直接下载。 */
+function filterOf(key: string, params: URLSearchParams): { where: string; args: unknown[] } | null {
+    const datasetId = (params.get('datasetId') || '').trim();
+    const runId = (params.get('runId') || '').trim();
+    const namespace = (params.get('namespace') || '').trim();
+    if (key === 'accounts' && datasetId)
+        return { where: 'dataset_id = ?', args: [datasetId] };
+    if (key === 'comments' && datasetId)
+        return { where: 'dataset_id = ?', args: [datasetId] };
+    if (key === 'comments' && namespace)
+        return { where: 'source_namespace = ?', args: [namespace] };
+    if (key === 'events' && datasetId)
+        return { where: 'dataset_id = ?', args: [datasetId] };
+    if (key === 'leads' && runId === 'scan')
+        return { where: "run_id LIKE 'scan_%'", args: [] };
+    if (key === 'leads' && runId)
+        return { where: 'run_id = ?', args: [runId] };
+    if (key === 'predictions' && runId)
+        return { where: 'run_id = ?', args: [runId] };
+    return null;
+}
+
 export async function exportSummary(db: D1Database): Promise<ExportSummary> {
     const tables = [];
     let databaseBytes = 0;
@@ -206,11 +228,15 @@ function shape(spec: Spec, row: Row, withLabels: boolean) {
     return out;
 }
 
-export async function exportTable(db: D1Database, user: User, key: string, format: 'csv' | 'json', withLabels = true) {
+export async function exportTable(db: D1Database, user: User, key: string, format: 'csv' | 'json', withLabels = true, params = new URLSearchParams()) {
     const spec = SPECS[key];
     if (!spec)
         throw new ApiProblem(404, 'export_unknown', '未知的导出对象');
-    const data = await rows(db, `${spec.sql} LIMIT ${MAX_ROWS}`);
+    const filter = filterOf(key, params);
+    const sql = filter
+        ? `SELECT * FROM (${spec.sql}) WHERE ${filter.where} LIMIT ${MAX_ROWS}`
+        : `${spec.sql} LIMIT ${MAX_ROWS}`;
+    const data = filter ? await rows(db, sql, ...filter.args) : await rows(db, sql);
     await audit(db, user, '导出数据', spec.label, `${data.length} 行;格式 ${format}`);
     const stamp = now().slice(0, 10);
     if (format === 'json') {

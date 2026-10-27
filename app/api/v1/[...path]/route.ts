@@ -269,7 +269,7 @@ async function handle(request: Request, context: {
         if (path[0] === 'exports' && path.length === 2 && method === 'GET') {
             if (!EXPORT_KEYS.includes(path[1]))
                 throw new ApiProblem(404, 'export_unknown', '未知的导出对象');
-            return await exportTable(db, user, path[1], params.get('format') === 'json' ? 'json' : 'csv', params.get('headers') !== 'raw');
+            return await exportTable(db, user, path[1], params.get('format') === 'json' ? 'json' : 'csv', params.get('headers') !== 'raw', params);
         }
         // ---- 协同线索 / 事件图谱(预计算批次) ----
         if (method === 'GET' && key === 'leads')

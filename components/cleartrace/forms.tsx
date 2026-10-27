@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowDownToLine, ArrowRight, CheckCircle2, CheckCheck, ChevronRight, Clock3, Database, FileJson, FileSpreadsheet, FileUp, Info, ListChecks, LoaderCircle, Play, Plus, RefreshCw, ShieldCheck, Upload, UserPlus, X } from 'lucide-react';
 import type { Account, Bootstrap, Dataset, DatasetOverview, ImportResult, Member, ReviewStatus, Role, Task } from '@/lib/contracts';
 type DatasetDetailPayload = { dataset: Dataset; overview: DatasetOverview; accounts: Account[]; comments: import('@/lib/contracts').CommentRecord[]; leads: import('@/lib/contracts').CoordinationLead[] };
-import { api, Badge, date, downloadText, Empty, fmt, Modal, RiskBadge, roleNames, reviewNames, Spinner, TaskBadge } from './common';
+import { api, Badge, date, downloadCsv, downloadText, Empty, fmt, Modal, RiskBadge, roleNames, reviewNames, Spinner, TaskBadge } from './common';
 const csvTemplate = 'account_id,display_name,platform,posts_count,followers_count,following_count,account_age_days,duplicate_ratio,burst_ratio,night_ratio,avg_interval_seconds,related_ids\nsample_001,样例账号一,公开样例,120,40,180,30,0.72,0.65,0.2,45,sample_002\nsample_002,样例账号二,公开样例,35,80,50,365,0.05,0.08,0.15,1200,sample_001\n';
 const jsonTemplate = JSON.stringify([{ account_id: 'sample_001', display_name: '样例账号一', platform: '公开样例', posts_count: 120, followers_count: 40, following_count: 180, account_age_days: 30, duplicate_ratio: 0.72, burst_ratio: 0.65, night_ratio: 0.2, avg_interval_seconds: 45, related_ids: ['sample_002'] }, { account_id: 'sample_002', display_name: '样例账号二', platform: '公开样例', posts_count: 35, followers_count: 80, following_count: 50, account_age_days: 365, duplicate_ratio: 0.05, burst_ratio: 0.08, night_ratio: 0.15, avg_interval_seconds: 1200, related_ids: ['sample_001'] }], null, 2);
 export function ImportModal({ onClose, onSuccess }: {
@@ -183,6 +183,18 @@ export function DatasetDetail({ dataset, accounts, onClose, onTask, onAccount, o
     }, [dataset.id]);
 
     const kindNames: Record<string, string> = { accounts: '账号型', douyin: '评论型', coordination: '线索型' };
+    const kind = detail?.dataset.kind || dataset.kind;
+    const exportTarget = kind === 'coordination'
+        ? { table: 'leads', query: 'runId=' + encodeURIComponent(dataset.version) }
+        : kind === 'douyin'
+            ? { table: 'comments', query: 'datasetId=' + encodeURIComponent(dataset.id) }
+            : { table: 'accounts', query: 'datasetId=' + encodeURIComponent(dataset.id) };
+    async function downloadData(format: 'csv' | 'json') {
+        try {
+            await downloadCsv(`/exports/${exportTarget.table}?${exportTarget.query}&format=${format}`, `清源-${dataset.name}.${format}`);
+        }
+        catch { /* 失败时保持弹窗,不强行关闭 */ }
+    }
     const overview = detail?.overview;
     const rows = detail?.accounts?.length ? detail.accounts : accounts.filter(a => a.datasetId === dataset.id).slice(0, 8);
 
@@ -195,6 +207,13 @@ export function DatasetDetail({ dataset, accounts, onClose, onTask, onAccount, o
         </div>
         {overview && <div className="inline-stats">{overview.items.map(item => <span key={item.label}>{item.label} <strong>{item.value}</strong></span>)}</div>}
         <p className="muted">{overview?.note || dataset.description || '数据通过标准字段校验后已入库。'}</p>
+        <div className="download-row">
+            <span className="tiny-label">下载这个数据集</span>
+            <div className="filter-group">
+                <button className="button button-soft" onClick={() => downloadData('csv')}><ArrowDownToLine size={15}/>CSV(Excel 可直接打开)</button>
+                <button className="button button-soft" onClick={() => downloadData('json')}><FileJson size={15}/>JSON(保留原始字段)</button>
+            </div>
+        </div>
         {error && <div className="inline-error"><AlertCircle size={16}/>{error}</div>}
         {!detail && !error && <div className="loading-block"><Spinner text="正在读取数据集"/></div>}
 
