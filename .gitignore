@@ -53,3 +53,11 @@ __pycache__/
 
 # 自建部署运行期配置(不含秘密模板)
 selfhost.env
+
+# 算法包交付的线索/图谱原始文本(体积大且含评论原文)
+# 用 scripts/prepare-coordination-data.py 从算法包 outputs 重新生成:
+#   python scripts/prepare-coordination-data.py <cleartrace_algorithm_api>/outputs .
+# 抖音公开小样本同理:scripts/prepare-douyin-sample.py
+/lib/data/coordination.json
+/lib/data/graphs.json
+/lib/data/douyin-sample.json

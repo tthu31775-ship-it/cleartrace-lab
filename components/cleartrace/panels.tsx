@@ -4,7 +4,7 @@ import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCheck,
 import type { Account, Bootstrap, Dataset, GraphData, Task } from '@/lib/contracts';
 import { api, ArrowLink, Badge, date, datasetColor, Empty, fmt, RiskBadge, roleNames, SectionTitle, TaskBadge, reviewNames } from './common';
 import { Tokens } from './tokens';
-export type Page = 'overview' | 'tasks' | 'datasets' | 'accounts' | 'graph' | 'integrations' | 'logs' | 'team';
+export type Page = 'overview' | 'leads' | 'screening' | 'scan' | 'tasks' | 'datasets' | 'accounts' | 'graph' | 'exports' | 'models' | 'integrations' | 'logs' | 'team';
 export interface PanelProps {
     data: Bootstrap;
     go: (page: Page) => void;

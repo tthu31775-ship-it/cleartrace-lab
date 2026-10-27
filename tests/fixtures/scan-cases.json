@@ -1,0 +1,230 @@
+[
+  {
+    "name": "同文本 5 账号 1 分钟内",
+    "parameters": {
+      "minAccounts": 5,
+      "windowMinutes": 10,
+      "similarityThreshold": 0.82
+    },
+    "comments": [
+      {
+        "accountId": "u_a",
+        "text": "这事必须严查，转发让更多人看到！",
+        "publishTime": 1720000000.0
+      },
+      {
+        "accountId": "u_b",
+        "text": "这事必须严查,转发让更多人看到!",
+        "publishTime": 1720000020.0
+      },
+      {
+        "accountId": "u_c",
+        "text": "这事必须严查，转发让更多人看到！",
+        "publishTime": 1720000045.0
+      },
+      {
+        "accountId": "u_d",
+        "text": "这事必须严查，转发让更多人看到！",
+        "publishTime": 1720000070.0
+      },
+      {
+        "accountId": "u_e",
+        "text": "这事必须严查，转发让更多人看到！",
+        "publishTime": 1720000110.0
+      }
+    ],
+    "expected": [
+      {
+        "indices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "representative": "这事必须严查，转发让更多人看到！",
+        "accountCount": 5,
+        "start": 1720000000.0,
+        "end": 1720000110.0,
+        "minSimilarity": 1.0
+      }
+    ]
+  },
+  {
+    "name": "只有 4 个账号(低于阈值)",
+    "parameters": {
+      "minAccounts": 5,
+      "windowMinutes": 10,
+      "similarityThreshold": 0.82
+    },
+    "comments": [
+      {
+        "accountId": "u_a",
+        "text": "支持国家严查网络水军，转发扩散！",
+        "publishTime": 1720000000.0
+      },
+      {
+        "accountId": "u_b",
+        "text": "支持国家严查网络水军,转发扩散!",
+        "publishTime": 1720000010.0
+      },
+      {
+        "accountId": "u_c",
+        "text": "支持国家严查网络水军，转发扩散！",
+        "publishTime": 1720000020.0
+      },
+      {
+        "accountId": "u_d",
+        "text": "支持国家严查网络水军，转发扩散！",
+        "publishTime": 1720000030.0
+      }
+    ],
+    "expected": []
+  },
+  {
+    "name": "相似但不同文本(阈值 0.82 应命中近似项)",
+    "parameters": {
+      "minAccounts": 5,
+      "windowMinutes": 10,
+      "similarityThreshold": 0.82
+    },
+    "comments": [
+      {
+        "accountId": "u_a",
+        "text": "水军集合兄弟们冲统一口径刷起来",
+        "publishTime": 1720000000.0
+      },
+      {
+        "accountId": "u_b",
+        "text": "水军集合兄弟们冲统一口径刷起来",
+        "publishTime": 1720000015.0
+      },
+      {
+        "accountId": "u_c",
+        "text": "水军集合兄弟们冲统一口径刷起来",
+        "publishTime": 1720000030.0
+      },
+      {
+        "accountId": "u_d",
+        "text": "水军集合兄弟们冲统一口径刷起来啊",
+        "publishTime": 1720000045.0
+      },
+      {
+        "accountId": "u_e",
+        "text": "水军集合兄弟们冲统一口径刷起来",
+        "publishTime": 1720000060.0
+      },
+      {
+        "accountId": "u_f",
+        "text": "今天天气不错适合出去走走散散步",
+        "publishTime": 1720000075.0
+      }
+    ],
+    "expected": [
+      {
+        "indices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "representative": "水军集合兄弟们冲统一口径刷起来",
+        "accountCount": 5,
+        "start": 1720000000.0,
+        "end": 1720000060.0,
+        "minSimilarity": 0.931
+      }
+    ]
+  },
+  {
+    "name": "跨时间窗(超过 10 分钟)不合并",
+    "parameters": {
+      "minAccounts": 5,
+      "windowMinutes": 10,
+      "similarityThreshold": 0.82
+    },
+    "comments": [
+      {
+        "accountId": "u_a",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000000.0
+      },
+      {
+        "accountId": "u_b",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000030.0
+      },
+      {
+        "accountId": "u_c",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000060.0
+      },
+      {
+        "accountId": "u_d",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000090.0
+      },
+      {
+        "accountId": "u_e",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000120.0
+      },
+      {
+        "accountId": "u_f",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000900.0
+      },
+      {
+        "accountId": "u_g",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000930.0
+      },
+      {
+        "accountId": "u_h",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000960.0
+      },
+      {
+        "accountId": "u_i",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720000990.0
+      },
+      {
+        "accountId": "u_j",
+        "text": "请严查这批账号同一个模板刷屏",
+        "publishTime": 1720001020.0
+      }
+    ],
+    "expected": [
+      {
+        "indices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "representative": "请严查这批账号同一个模板刷屏",
+        "accountCount": 5,
+        "start": 1720000000.0,
+        "end": 1720000120.0,
+        "minSimilarity": 1.0
+      },
+      {
+        "indices": [
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "representative": "请严查这批账号同一个模板刷屏",
+        "accountCount": 5,
+        "start": 1720000900.0,
+        "end": 1720001020.0,
+        "minSimilarity": 1.0
+      }
+    ]
+  }
+]

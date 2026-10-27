@@ -3,7 +3,7 @@
 // 用法:node scripts/selfhost.mjs            (默认先迁移)
 //      SKIP_MIGRATE=1 node scripts/selfhost.mjs
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -60,14 +60,43 @@ const env = {
   CLEARTRACE_PERSIST_TO: DATA_DIR,
 };
 
-if (process.env.SKIP_MIGRATE !== '1') {
-  const migrated = spawnSync(process.execPath, [resolve(root, 'scripts/team-migrate.mjs')], {
-    cwd: root, stdio: 'inherit', env,
+function migrate() {
+  return spawnSync(process.execPath, [resolve(root, 'scripts/team-migrate.mjs')], {
+    cwd: root, encoding: 'utf8', env,
   });
+}
+
+/** D1 状态文件损坏(SQLITE_CORRUPT)时归档旧目录后重建,避免整站起不来。 */
+function recoverCorruptState(output) {
+  if (!/SQLITE_CORRUPT|malformed/i.test(output || '')) return false;
+  const d1Dir = resolve(root, DATA_DIR, 'v3', 'd1');
+  if (!existsSync(d1Dir)) return false;
+  const backup = `${d1Dir}.broken-${Date.now()}`;
+  renameSync(d1Dir, backup);
+  console.warn(`[selfhost] 检测到本地 D1 状态损坏,已归档到 ${backup},将重建空库后重新迁移。`);
+  return true;
+}
+
+if (process.env.SKIP_MIGRATE !== '1') {
+  let migrated = migrate();
   if (migrated.error) throw migrated.error;
   if (migrated.status !== 0) {
-    console.error('[selfhost] 数据库迁移失败,已停止启动。');
-    process.exit(migrated.status || 1);
+    const output = `${migrated.stdout || ''}${migrated.stderr || ''}`;
+    if (!recoverCorruptState(output)) {
+      console.error(output.trim().split('\n').slice(-12).join('\n'));
+      console.error('[selfhost] 数据库迁移失败,已停止启动。');
+      process.exit(migrated.status || 1);
+    }
+    migrated = migrate();
+    if (migrated.error) throw migrated.error;
+    if (migrated.status !== 0) {
+      console.error(`${migrated.stdout || ''}${migrated.stderr || ''}`.trim().split('\n').slice(-12).join('\n'));
+      console.error('[selfhost] 重建后迁移仍失败,已停止启动。');
+      process.exit(migrated.status || 1);
+    }
+  }
+  else {
+    process.stdout.write(migrated.stdout || '');
   }
 }
 

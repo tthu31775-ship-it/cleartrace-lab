@@ -22,6 +22,13 @@
       "when": 1793006967893,
       "tag": "0002_local_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793010000000,
+      "tag": "0003_coordination_comments",
+      "breakpoints": true
     }
   ]
 }

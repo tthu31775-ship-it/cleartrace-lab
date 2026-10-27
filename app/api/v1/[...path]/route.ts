@@ -3,6 +3,11 @@ import openapi from '@/docs/openapi.json';
 import { authenticate, authorize, clearSessionCookie, createSession, ensureAdminAccount, hashToken, login, revokeMemberSessions, revokeSession, sessionCookie, setMemberPassword, verifyOrigin, verifyOwnPassword } from '@/lib/server/auth';
 import { account, ApiProblem, audit, database, dataset, first, now, rows, runtime, uuid } from '@/lib/server/db';
 import { ensureSeed } from '@/lib/server/seed';
+import { ensureCoordinationSeed, exportLeads, getEvent, getEventGraph, getLead, leadsOfAccount, listEvents, listLeads, parseLeadQuery, reviewLead } from '@/lib/server/coordination';
+import { douyinStatus, importDouyinSample, listComments, listPredictions, modelStatus, screenComments } from '@/lib/server/screening';
+import { scanCoordinationEvent } from '@/lib/server/scan';
+import { exportBackup, exportSchema, exportSummary, exportTable, EXPORT_KEYS } from '@/lib/server/exports';
+import { predictComment, predictCommentBatch, WB01_MAX_BATCH, WB01_MAX_LENGTH, wb01ModelInfo } from '@/lib/core/wb01';
 import { bootstrap, createTask, exportTask, getAccount, getAccounts, getDatasets, getIntegrations, getLogs, getMembers, getTask, getTasks, graphOf, importDataset, runTask } from '@/lib/server/service';
 import { ImportError } from '@/lib/core/import';
 import type { User } from '@/lib/contracts';
@@ -13,6 +18,8 @@ const taskSchema = z.object({ name: text, datasetId: z.string().min(1).max(100),
 const roles = z.enum(['editor', 'reviewer', 'viewer']);
 const memberSchema = z.object({ name: text, email: z.string().email().max(200).transform(x => x.toLowerCase()), role: roles, password: z.string().min(1).max(200).optional() });
 const reviewSchema = z.object({ status: z.enum(['confirmed', 'dismissed', 'pending']), note: z.string().trim().min(1, '请填写复核依据').max(1000) });
+const leadReviewSchema = z.object({ status: z.enum(['pending', 'following', 'confirmed', 'dismissed']), note: z.string().trim().min(1, '请填写复核依据').max(1000) });
+const screeningSchema = z.object({ runId: z.string().trim().max(120).optional(), items: z.array(z.object({ content: z.string().max(4000), commentId: z.string().trim().max(200).optional(), accountId: z.string().trim().max(200).optional(), authorName: z.string().trim().max(120).optional(), namespace: z.string().trim().max(40).optional() })).min(1).max(200) });
 async function readBody(request: Request) {
     if (Number(request.headers.get('content-length') || 0) > 5242880)
         throw new ApiProblem(413, 'body_too_large', '上传内容不能超过 5 MB');
@@ -96,8 +103,10 @@ async function handle(request: Request, context: {
             return Response.json({ data: { updated: true } }, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Set-Cookie': sessionCookie(fresh.token, request, fresh.ttl) } });
         }
         const seedFlag = (runtime().SEED_DEMO_DATA || 'true').toLowerCase();
-        if (seedFlag !== 'false' && seedFlag !== '0')
+        if (seedFlag !== 'false' && seedFlag !== '0') {
             await ensureSeed(db);
+            await ensureCoordinationSeed(db);
+        }
         if (method === 'GET' && key === 'bootstrap')
             return json(await bootstrap(db, user));
         if (method === 'GET' && key === 'session')
@@ -182,6 +191,124 @@ async function handle(request: Request, context: {
             filtered.set('limit', '5000');
             return json(graphOf(await getAccounts(db, filtered), Number(params.get('limit')) || 60));
         }
+        // ---- WB01 交付包的原始契约(便于算法组的客户端/脚本直接对接) ----
+        const wb01Ok = (data: unknown) => Response.json({ code: 0, data }, { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+        const wb01Fail = (code: number, msg: string) => Response.json({ code, msg }, { status: code, headers: { 'Cache-Control': 'no-store' } });
+        if (method === 'GET' && (key === 'water-comment/model_info' || key === 'model/info')) {
+            const info = wb01ModelInfo() as Record<string, unknown> & { model_version: string; threshold: number };
+            return wb01Ok({ ...info, model_version: info.model_version, threshold: info.threshold });
+        }
+        if (method === 'POST' && key === 'water-comment/predict') {
+            const body = z.object({ content: z.string(), comment_id: z.string().trim().max(200).optional() }).safeParse(await readBody(request));
+            if (!body.success)
+                return wb01Fail(400, 'content 不能为空');
+            const content = body.data.content;
+            if (!content.trim())
+                return wb01Fail(400, 'content 不能为空');
+            if (content.length > WB01_MAX_LENGTH)
+                return wb01Fail(400, `content 太长(最多 ${WB01_MAX_LENGTH} 字)`);
+            const started = performance.now();
+            const prediction = predictComment(content, body.data.comment_id);
+            return wb01Ok({
+                comment_id: prediction.comment_id,
+                probability: prediction.probability,
+                label: prediction.label,
+                risk_level: prediction.risk_level,
+                threshold: prediction.threshold,
+                confidence: prediction.confidence,
+                model_version: prediction.model_version,
+                evidence: prediction.evidence,
+                latency_ms: Math.round((performance.now() - started) * 100) / 100,
+            });
+        }
+        if (method === 'POST' && key === 'water-comment/predict_batch') {
+            const body = z.object({ items: z.array(z.object({ content: z.string().optional(), comment_id: z.string().trim().max(200).optional() })).min(1).max(WB01_MAX_BATCH) }).safeParse(await readBody(request));
+            if (!body.success)
+                return wb01Fail(400, `items 必须是非空数组,单次最多 ${WB01_MAX_BATCH} 条`);
+            const started = performance.now();
+            const results = predictCommentBatch(body.data.items).map(item => ('error' in item
+                ? { comment_id: item.comment_id, error: item.error }
+                : {
+                    comment_id: item.comment_id,
+                    probability: item.probability,
+                    label: item.label,
+                    risk_level: item.risk_level,
+                    threshold: item.threshold,
+                    confidence: item.confidence,
+                    model_version: item.model_version,
+                    evidence: item.evidence,
+                }));
+            return wb01Ok({ items: results, latency_ms: Math.round((performance.now() - started) * 100) / 100 });
+        }
+        // ---- 事件协同在线扫描 ----
+        if (method === 'POST' && key === 'coordination/scan') {
+            authorize(user, ['admin', 'editor', 'reviewer']);
+            const body = z.object({
+                eventId: z.string().trim().min(1).max(200),
+                datasetId: z.string().trim().max(200).optional().nullable(),
+                comments: z.array(z.any()).min(1).max(5000),
+                parameters: z.object({ minAccounts: z.number().optional(), windowMinutes: z.number().optional(), similarityThreshold: z.number().optional() }).partial().optional(),
+            }).parse(await readBody(request));
+            return json(await scanCoordinationEvent(db, user, body), 201);
+        }
+        // ---- 数据导出 ----
+        if (method === 'GET' && key === 'exports/summary')
+            return json(await exportSummary(db));
+        if (method === 'GET' && key === 'exports/backup') {
+            authorize(user, ['admin']);
+            return await exportBackup(db, user);
+        }
+        if (method === 'GET' && key === 'exports/schema')
+            return await exportSchema(db, user);
+        if (path[0] === 'exports' && path.length === 2 && method === 'GET') {
+            if (!EXPORT_KEYS.includes(path[1]))
+                throw new ApiProblem(404, 'export_unknown', '未知的导出对象');
+            return await exportTable(db, user, path[1], params.get('format') === 'json' ? 'json' : 'csv', params.get('headers') !== 'raw');
+        }
+        // ---- 协同线索 / 事件图谱(预计算批次) ----
+        if (method === 'GET' && key === 'leads')
+            return json(await listLeads(db, parseLeadQuery(params)));
+        if (method === 'GET' && key === 'leads/export')
+            return await exportLeads(db, user, parseLeadQuery(params));
+        if (method === 'GET' && key === 'leads/account')
+            return json(await leadsOfAccount(db, String(params.get('key') || ''), String(params.get('namespace') || 'coordination')));
+        if (path[0] === 'leads' && path.length === 2 && method === 'GET')
+            return json(await getLead(db, path[1]));
+        if (path[0] === 'leads' && path.length === 3 && path[2] === 'review' && method === 'POST') {
+            authorize(user, ['admin', 'editor', 'reviewer']);
+            const body = leadReviewSchema.parse(await readBody(request));
+            return json(await reviewLead(db, user, path[1], body.status, body.note));
+        }
+        if (method === 'GET' && key === 'events')
+            return json(await listEvents(db, {
+                page: Math.max(1, Number(params.get('page') || 1) || 1),
+                pageSize: Math.min(100, Math.max(5, Number(params.get('pageSize') || 20) || 20)),
+                namespace: (params.get('namespace') || '').trim(),
+                q: (params.get('q') || '').trim().slice(0, 120),
+                batch: (params.get('batch') || '').trim(),
+            }));
+        if (path[0] === 'events' && path.length === 2 && method === 'GET')
+            return json(await getEvent(db, path[1]));
+        if (path[0] === 'events' && path.length === 3 && path[2] === 'graph' && method === 'GET')
+            return json(await getEventGraph(db, path[1]));
+        // ---- 评论与文本筛查 ----
+        if (method === 'GET' && key === 'comments')
+            return json(await listComments(db, params));
+        if (method === 'GET' && key === 'screening/predictions')
+            return json(await listPredictions(db, params));
+        if (method === 'POST' && key === 'screening/comments') {
+            authorize(user, ['admin', 'editor', 'reviewer']);
+            const body = screeningSchema.parse(await readBody(request));
+            return json(await screenComments(db, user, body.items, body.runId), 201);
+        }
+        if (method === 'GET' && key === 'models/status')
+            return json(await modelStatus(db));
+        if (method === 'GET' && key === 'imports/douyin')
+            return json(await douyinStatus(db));
+        if (method === 'POST' && key === 'imports/douyin') {
+            authorize(user, ['admin', 'editor']);
+            return json(await importDouyinSample(db, user), 201);
+        }
         if (method === 'GET' && key === 'logs')
             return json(await getLogs(db));
         if (method === 'GET' && key === 'integrations')
@@ -261,6 +388,20 @@ async function handle(request: Request, context: {
         throw new ApiProblem(404, 'not_found', '接口不存在');
     }
     catch (e) {
+        // 提前拒绝(如来源校验、鉴权失败)时请求体可能还没被读取。
+        // 不显式取消会让运行时一直等待上行数据,后续请求会被拖住。
+        if (request.body && !request.bodyUsed) {
+            try {
+                // 读完丢弃:只 cancel 不排空,运行时仍会等上行数据,连接被占住。
+                await request.text();
+            }
+            catch {
+                try {
+                    await request.body?.cancel();
+                }
+                catch { /* 已关闭 */ }
+            }
+        }
         if (e instanceof ZodError)
             return Response.json({ error: { code: 'validation_error', message: e.issues[0]?.message || '请求参数不符合协议', details: e.issues.map(x => ({ path: x.path.join('.'), message: x.message })) } }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
         if (e instanceof ImportError)
