@@ -239,7 +239,13 @@ curl -H "Authorization: Bearer ct_xxx" \
 - 新增 `dataset-coordination-20261023` 数据集记录，`数据集` 页面能看到这个批次。
 - 统计口径拆开：`precomputedLeads / precomputedEvents / precomputedAccounts / precomputedComments` 与 `scannedLeads / scannedRuns` 分开返回，页面也分开显示——扫描结果不会污染 803/173 的对账。
 
-### 14.5 本轮验收
+### 14.5 本轮发布
 
-`scripts/verify-model-integration.py` 扩到 **10 组 79 项**，本地与线上均 **79/79 通过**；`scripts/test-core.mjs` 合并 WB01（51 项）与协同扫描（9 项）对账；`scripts/verify-ui.py` 现在会走 6 个页面（登录 → 线索 → 详情图谱 → 评论检测 → 事件扫描 → 数据导出 → 模型接入）并截图。
+同一个网址（https://cleartrace-lab.app.workbuddy.host/?sharecode=OG2AYMRQZQ）已更新到本轮版本：
+线上 `GET /api/v1/openapi` 返回 1.2.0 / 44 个路径，导航里能看到 事件扫描、数据导出。
+发布前把本地测试产生的扫描批次与手工筛查记录清掉了，线上起始状态是干净的 803 / 173 / 7292 / 4750。
+
+### 14.6 本轮验收
+
+`scripts/verify-model-integration.py` 扩到 **10 组 81 项**，本地与线上均 **81/81 通过**；`scripts/test-core.mjs` 合并 WB01（51 项）与协同扫描（9 项）对账；`scripts/verify-ui.py` 现在会走 6 个页面（登录 → 线索 → 详情图谱 → 评论检测 → 事件扫描 → 数据导出 → 模型接入）并截图。
 
