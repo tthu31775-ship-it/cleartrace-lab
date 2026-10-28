@@ -45,3 +45,12 @@ https://github.com/tthu31775-ship-it/cleartrace-lab/compare/main...feat/model-in
 `lib/data/coordination.json`、`graphs.json`、`douyin-sample.json` 含评论原文与平台账号键,
 按规划 §8.2 不进公开仓库;克隆后跑 `scripts/prepare-coordination-data.py` 与
 `scripts/prepare-douyin-sample.py` 重新生成即可(详见 `lib/data/README.md`)。
+
+## 6. 当前推送状态（2026-10-27）
+
+| 项 | 值 |
+| --- | --- |
+| 仓库 | https://github.com/tthu31775-ship-it/cleartrace-lab |
+| 分支 | `feat/model-integration`（已推送，HEAD `845cd11`） |
+| PR | https://github.com/tthu31775-ship-it/cleartrace-lab/pull/1 （open，可自动合并，未合并） |
+| 未推送 | 数据集类型修复、数据集下载、模型自检、评论库、账号相关线索等（按要求先不提交） |

@@ -300,3 +300,101 @@ curl -H "Authorization: Bearer ct_xxx" \
 **令牌不进仓库**：GitHub 的 PAT 只保存在本机 `ct/.push-credential`（仓库之外，`chmod 600`），
 推送脚本 `scripts/push-to-github.sh` 从环境变量取用。原因与轮换步骤见 `docs/handoff/PUSH.md`。
 
+---
+
+# 追加：第三轮（本机全量复核 + 交接包拆成内部版/对外版）
+
+## 18. 复核：把"上次说通过"重新跑一遍
+
+环境：Windows 10（本机），Node v24.14.1，npm 11.11.0，Windows PowerShell 5.1，Playwright chromium 148。
+不是引用旧记录，下面每条都是本轮重新执行的。
+
+| 项 | 命令 | 结果 |
+| --- | --- | --- |
+| 类型检查 | `tsc --noEmit` | 0 错误 |
+| WB01 + 协同扫描对账 | `node scripts/test-core.mjs` | 通过 51 + 9，最大概率偏差 0.00e+0 |
+| 后端单测 | `node scripts/test-backend.mjs` | 11 / 11 |
+| 生产构建 | `node scripts/run-framework.mjs build` | 成功，61.3 秒（36 个模块，4.5 MB） |
+| 迁移 + 启动 | `node scripts/selfhost.mjs` | 0 个待应用迁移，监听 0.0.0.0:3000 |
+| 接口验收（真实数据） | `python scripts/verify-model-integration.py` | **93 / 93** |
+| 浏览器验收 | `python scripts/verify-ui.py` | 登录成功、线索 20 行、图谱 61 节点、能力卡 5 张、导出 12 行 |
+
+数据库在复核前后都用同一份快照还原，复核产生的扫描批次与打分记录没有留在交付库里：
+`coordination_leads=803`、`coordination_lead_members=7292`、`comments=4750`、扫描批次 0、打分记录 0。
+
+浏览器验收这一轮暴露了脚本自身的两个毛病，已修：
+
+1. **登录前 401 被判成控制台错误**：页面首屏会请求 `/api/v1/bootstrap` 拿会话，未登录必然 401。
+   脚本把它计入 `console_errors`，于是"全部正常"也退出码 1。现在按登录时点切分，登录前的噪音单独计数。
+2. **代表评论关键词写死**：验收脚本里直接搜`李睿 拓跋煜`，换成脱敏数据后必然误报。改成先取本实例
+   `lead_0001` 的 `representative`，再用它自己的关键词回搜，原始数据与脱敏包都能跑。
+
+## 19. 打包：旧脚本会把凭据发给对方
+
+旧版 `make-handoff-package.ps1` 有两个真问题，不是风格问题：
+
+| 问题 | 后果 | 现在 |
+| --- | --- | --- |
+| 把 `.wrangler/state`（成员密码散列、审计日志）和 `selfhost.env`（管理员口令）打进 zip | 收件人拿到就能登录、能看全部业务数据 | 拆成内部版/对外版，对外版强制剔除 |
+| `.ps1` 存成无 BOM 的 UTF-8，Windows PowerShell 5.1 按 ANSI 解析 | 中文全变乱码、直接语法报错，双击 `打包给我.bat` 根本跑不起来 | 写文件时带 UTF-8 BOM，`Parser::ParseFile` 先自检 |
+
+顺带修掉的三个坑：
+
+- `Get-FileHash -Path` 与 `Compress-Archive -Path` 会把 `app/api/v1/[...path]/route.ts` 的方括号当通配符，
+  结果是哈希算不出来、压缩静默漏文件。改用 `-LiteralPath` 与 `System.IO.Compression.ZipFile` 直接压目录，
+  压完再比对"zip 内文件条目数 = 暂存文件数 + 2"。
+- `robocopy` 退出码 0–7 都是成功，只有 ≥8 才是失败；旧写法按 `$LASTEXITCODE -ne 0` 判断会误报。
+- 打包暂存目录里混进过 `__pycache__`、`*.pyc`、`*.tsbuildinfo` 和一次误跑生成的截图目录，已列入排除。
+
+## 20. 对外脱敏版怎么来的
+
+新增 `scripts/make-public-demo-data.py`：读 `lib/data/*.json`，按字段脱敏后写出，**结构、计数、时间戳、相似度全部不动**。
+
+| 字段 | 脱敏后 |
+| --- | --- |
+| `text` / `content`（评论正文） | `［示例评论］示例文本NNNNN` |
+| `uid` / `accountId` | `demo_account_NNNNN` |
+| `nickname` / `representative`（昵称串） | `示例用户NNNNN`（图谱里的 `g38n0` 这类节点 ID 不动） |
+| `ipRegion` | `示例属地` |
+| `workId` / 抖音链接 | `7000000000000000001…5`（**同一个作品用同一个假 ID**） |
+
+第一版把 `workId` 逐个编号，5 个作品和 231 条评论的引用关系当场断掉，导入直接
+`D1_ERROR: FOREIGN KEY constraint failed`（HTTP 500）。改成稳定映射后引用完整，
+脚本自带引用自检：`抖音评论->作品：231 条对得上，孤儿 0 条`。
+
+## 21. 两个包（本轮产物）
+
+| 包 | 大小 | 内容 | 给谁 |
+| --- | --- | --- | --- |
+| `cleartrace-handoff-internal-20261027.zip` | 20.6 MB / 466 文件 | 源码 + **含 803 条线索的数据库快照** + 真实数据 + 算法包 + Git bundle/patch + 验收日志与截图 | 自己人 / 自己机器 |
+| `cleartrace-demo-share-20261027.zip` | 9.4 MB / 248 文件 | 源码 + **脱敏数据** + 占位口令 `admin@example.com / ChangeMe2026` + 验收日志与截图；不含数据库、算法原件、Git 历史 | 外部评审 / 演示 |
+
+两个包都带 `SHA256SUMS.txt`、`PACKAGE-MANIFEST.json`、`00-START-HERE.md`（末尾自动追加本包模式说明），
+`03-reports/` 里有一份 `FILE-LOCATIONS.md`，收件人拿到就能按路径找文件。
+
+## 22. 干净机器实测（对外脱敏版）
+
+把 `cleartrace-demo-share-20261027.zip` 解到一台空目录 `D:\ct-cleanroom`，完全当作收件人来做：
+
+```bash
+npm ci --include=dev --include=optional   # 686 个包，3 分钟
+node scripts/run-framework.mjs build      # 8.7 秒
+node scripts/selfhost.mjs                 # 空库，5 个迁移全部应用，监听 :3100
+python scripts/verify-model-integration.py http://127.0.0.1:3100 admin@example.com ChangeMe2026
+```
+
+结果：**93 / 93 通过**。即"没有数据库、没有算法包、数据全脱敏"的包，照样能从空库把 803 条线索重建出来，
+接口与页面行为与内部版一致（803 / 173 / 7292 / 7355 的计数是在空库上重新 seed 出来的，不是拷库）。
+
+本轮第一次跑这个实测是失败的：外键断裂 + 代表评论关键词写死，两类问题各占 8 项与 1 项。修复后重跑才是 93/93。
+
+## 23. 这轮没做的事
+
+1. **没有提交 Git**：本次改动全在 `ct\handoff\source`（打包源）。`ct\upstream` 仓库仍是 `845cd11`，
+   要进仓库需要把 `scripts/make-public-demo-data.py`、`scripts/verify-ui.py`、`scripts/verify-model-integration.py`、
+   `make-handoff-package.ps1`、`docs/handoff/evidence/` 这几处补提交。
+2. **PR #1 仍未合并**（团队 review 中），合并前线上不跟着变。
+3. **逐元素点击审计 `audit-ui.py` 本轮没跑出结果**：它在多页循环里长时间无输出（无浏览器进程、无 JSON 落盘），
+   已中止。下次要么加 `-u` 看卡在哪一页，要么给每页加超时。其余验收不受影响。
+4. 前一轮列出的 P0（341 项短句词典、独立测试集）与 P1（账号 BERT 权重、全量事件图谱）依旧未动。
+
