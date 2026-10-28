@@ -30,3 +30,20 @@
 .integration-grid .integration-card{height:100%}
 @media (max-width:1180px){.integration-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media (max-width:760px){.integration-grid{grid-template-columns:1fr!important}}
+
+/* ===== 2026-10-28 修复：侧边栏可滚动 + 登录页按钮 ===== */
+/* 13 个导航项在 768px 高的笔记本上会超出视口，原来 .sidebar 是 fixed + flex 且没有 overflow，
+   底部的「接口与协议 / 操作日志 / 项目协作」直接被裁掉、点不到。 */
+.sidebar{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-bottom:18px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.sidebar::-webkit-scrollbar{width:6px}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+.sidebar::-webkit-scrollbar-track{background:transparent}
+.sidebar:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.32)}
+
+/* 登录页：输入框聚焦态与按钮的 hover/active/键盘聚焦态 */
+.login-input{transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+.login-input:focus{border-color:#3f9c81;background:#fff;box-shadow:0 0 0 3px rgba(63,156,129,.14)}
+.login-submit{transition:background .16s ease,box-shadow .16s ease,transform .06s ease}
+.login-submit:hover:not(:disabled){background:#37907a}
+.login-submit:active:not(:disabled){transform:translateY(1px)}
+.login-submit:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(63,156,129,.35)}

@@ -5,10 +5,13 @@ import { api } from './common';
 import type { User } from '@/lib/contracts';
 
 const shell: React.CSSProperties = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', background: 'radial-gradient(1200px 600px at 15% 0%, #eef7f3 0%, #f7fafb 45%, #f1f6f7 100%)' };
-const card: React.CSSProperties = { width: '100%', maxWidth: '392px', background: '#fff', border: '1px solid #e3edef', borderRadius: '14px', boxShadow: '0 18px 48px rgba(23,73,61,.08)', padding: '34px 32px 28px' };
+const card: React.CSSProperties = { width: '100%', maxWidth: '392px', background: '#fff', border: '1px solid #e3edef', borderRadius: '14px', boxShadow: '0 18px 48px rgba(23,73,61,.08)', padding: '34px 32px 28px', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto' };
 const label: React.CSSProperties = { display: 'block', fontSize: '13px', color: '#5b7480', marginBottom: '7px' };
 const input: React.CSSProperties = { width: '100%', height: '42px', border: '1px solid #dde8ea', borderRadius: '8px', padding: '0 12px', fontSize: '13px', color: '#2f4650', background: '#fbfdfd', outline: 'none', boxSizing: 'border-box' };
-const submit: React.CSSProperties = { width: '100%', height: '44px', marginTop: '22px', border: '0', borderRadius: '8px', background: '#3f9c81', color: '#fff', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' };
+// 注意：这个常量原来叫 submit，和下面的事件处理函数 submit() 同名，
+// 结果 {...submit} 展开的是一个函数（没有可枚举属性），按钮的宽度/背景/圆角全丢了，
+// 页面上那个"透明、84px、左对齐"的按钮就是这么来的。改名 submitStyle。
+const submitStyle: React.CSSProperties = { width: '100%', height: '44px', marginTop: '22px', border: '0', borderRadius: '8px', background: '#3f9c81', color: '#fff', fontSize: '14px', fontWeight: 500, letterSpacing: '.02em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' };
 
 export function LoginScreen({ onSignedIn }: { onSignedIn: (user: User) => void }) {
     const [email, setEmail] = useState('');
@@ -39,11 +42,11 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: (user: User) => void }
         <p style={{ margin: '0 0 24px', fontSize: '12px', color: '#7d949e', lineHeight: 1.7 }}>网络水军候选行为研判工作台。请使用管理员分配的工作空间账号登录。</p>
         <form onSubmit={submit}>
             <label style={label} htmlFor="ct-email">登录邮箱</label>
-            <input id="ct-email" type="email" required autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" style={input}/>
+            <input id="ct-email" className="login-input" type="email" required autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" style={input}/>
             <label style={{ ...label, marginTop: '16px' }} htmlFor="ct-password">登录密码</label>
-            <input id="ct-password" type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="至少 10 位，含字母与数字" style={input}/>
+            <input id="ct-password" className="login-input" type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="至少 10 位，含字母与数字" style={input}/>
             {error && <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '14px', fontSize: '12px', color: '#b3583f', background: '#fdf4f1', border: '1px solid #f2ddd6', borderRadius: '7px', padding: '9px 11px' }}><AlertCircle size={15}/><span>{error}</span></div>}
-            <button type="submit" disabled={busy} style={{ ...submit, opacity: busy ? .72 : 1 }}>{busy ? <><LoaderCircle size={16} className="spin"/>正在验证</> : <>登录工作空间<ArrowRight size={16}/></>}</button>
+            <button type="submit" className="login-submit" disabled={busy} style={{ ...submitStyle, opacity: busy ? .72 : 1 }}>{busy ? <><LoaderCircle size={16} className="spin"/>正在验证</> : <>登录工作空间<ArrowRight size={16}/></>}</button>
         </form>
         <div style={{ marginTop: '22px', paddingTop: '16px', borderTop: '1px solid #eef4f5', display: 'flex', gap: '7px', fontSize: '11px', color: '#93a8b0', lineHeight: 1.7 }}><ShieldCheck size={14} style={{ flexShrink: 0, marginTop: '2px' }}/><span>会话保存在服务端，登录以 HttpOnly Cookie 传递。账号与密码由项目管理员在「项目协作」中分配与重置。</span></div>
     </div></div>;

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """全流程演练：模拟"别人拿到账号后在浏览器里跑一遍"。
 
 覆盖 6 个关键动作，全部走真实接口：
@@ -48,6 +48,12 @@ def main() -> int:
 
         print(f'目标 {BASE}')
         page.goto(BASE, wait_until='networkidle')
+        # 回归保护：登录页必须是独立全屏（不能把工作台侧边栏渲染出来），按钮必须是正常尺寸
+        sidebar_on_login = page.locator('.sidebar').count()
+        submit_box = page.locator('button[type=submit]').bounding_box() or {'width': 0, 'height': 0}
+        check('0 登录页独立全屏', sidebar_on_login == 0, f'侧边栏元素 {sidebar_on_login} 个')
+        check('0 登录按钮样式正常', submit_box['width'] > 200 and submit_box['height'] >= 40,
+              f"{round(submit_box['width'])}×{round(submit_box['height'])}")
         page.fill('#ct-email', EMAIL)
         page.fill('#ct-password', PASSWORD)
         page.click('button[type=submit]')
