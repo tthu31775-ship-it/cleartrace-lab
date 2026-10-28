@@ -326,7 +326,7 @@ export async function modelStatus(db: D1Database): Promise<ModelStatus> {
         capabilities: [
             { key: 'comment_classification', name: '评论文本筛查', status: 'ready', version: WB01_VERSION, detail: `字符 1-3gram 哈希 TF-IDF(${info.dimension} 维)+ 线性模型,服务端内置推理,单条/批量 ≤${WB01_MAX_BATCH} 条落库。`, contract: 'POST /api/v1/screening/comments' },
             { key: 'coordination_lookup', name: '协同线索查询', status: 'ready', version: COORDINATION_VERSION, detail: `预计算批次 ${COORDINATION_BATCH}:${Number(leads?.total ?? 0)} 组线索、${Number(events?.total ?? 0)} 个事件,支持列表/详情/复核/导出。`, contract: 'GET /api/v1/leads' },
-            { key: 'coordination_scan', name: '新事件在线扫描', status: 'planned', version: '—', detail: '算法包 scan 接口尚未接入:缺完整 341 项短句词典与图谱输出契约,当前不提供在线扫描入口。', contract: 'POST /api/v1/events/:id/scan(未启用)' },
+            { key: 'coordination_scan', name: '新事件在线扫描', status: 'ready', version: 'online-1.0', detail: '在线清洗口径(10 条通用短句)+ 字符 2/3-gram Jaccard + 10 分钟滑窗 + 最少 5 个不同账号;结果按独立 runId 落 events/coordination_leads/成员/相似边/图谱,与离线 803 批分开。输入没有节点级回复关系,图谱不生成回复边。', contract: 'POST /api/v1/coordination/scan' },
             { key: 'account_bert', name: '账号 BERT 模型', status: 'not_ready', version: '—', detail: '算法包只有模板,没有权重与特征契约;正式接口返回 503 MODEL_NOT_READY,mock 分数不入库。', contract: 'POST /api/v1/bert-account/predict(未启用)' },
             { key: 'behavior_baseline', name: '行为规则基线', status: 'ready', version: 'baseline-v1', detail: '工作台原有的账号八项行为特征规则,只作规则参考,与评论模型分数分开显示。', contract: 'POST /api/v1/tasks/:id/run' },
         ],

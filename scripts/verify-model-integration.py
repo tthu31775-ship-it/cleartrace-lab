@@ -236,7 +236,7 @@ status_body = payload(raw).get('data', {})
 caps = {c['key']: c['status'] for c in status_body.get('capabilities', [])}
 check('comment_classification 就绪', caps.get('comment_classification') == 'ready', str(caps.get('comment_classification')))
 check('coordination_lookup 就绪', caps.get('coordination_lookup') == 'ready')
-check('coordination_scan 未接入', caps.get('coordination_scan') == 'planned', str(caps.get('coordination_scan')))
+check('coordination_scan 就绪(在线口径)', caps.get('coordination_scan') == 'ready', str(caps.get('coordination_scan')))
 check('account_bert 未就绪', caps.get('account_bert') == 'not_ready', str(caps.get('account_bert')))
 check('模型版本与维度正确', status_body.get('wb01', {}).get('modelVersion') == 'wb01-textonly-v1.0' and status_body.get('wb01', {}).get('dimension') == 8192)
 check('免责声明存在', len(status_body.get('disclaimers', [])) >= 3)

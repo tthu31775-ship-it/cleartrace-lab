@@ -1,6 +1,6 @@
 import { z, ZodError } from 'zod';
 import openapi from '@/docs/openapi.json';
-import { authenticate, authorize, clearSessionCookie, createSession, ensureAdminAccount, hashToken, login, revokeMemberSessions, revokeSession, sessionCookie, setMemberPassword, verifyOrigin, verifyOwnPassword } from '@/lib/server/auth';
+import { authenticate, authorize, clearLoginFailures, clientAddress, createSession, ensureAdminAccount, hashToken, login, recordLoginFailure, revokeMemberSessions, revokeSession, sessionCookie, setMemberPassword, verifyOrigin, verifyOwnPassword, LOGIN_MAX_FAILURES, clearSessionCookie } from '@/lib/server/auth';
 import { account, ApiProblem, audit, database, dataset, first, now, rows, runtime, uuid } from '@/lib/server/db';
 import { ensureSeed } from '@/lib/server/seed';
 import { ensureCoordinationSeed, exportLeads, getEvent, getEventGraph, getLead, leadsOfAccount, listEvents, listLeads, parseLeadQuery, reviewLead } from '@/lib/server/coordination';
@@ -81,7 +81,19 @@ async function handle(request: Request, context: {
             verifyOrigin(request);
             await ensureAdminAccount(db);
             const body = z.object({ email: z.string().trim().email().max(200), password: z.string().min(1).max(200) }).parse(await readBody(request));
-            const result = await login(db, body.email, body.password, request);
+            const address = clientAddress(request);
+            let result;
+            try {
+                result = await login(db, body.email, body.password, request);
+            }
+            catch (error) {
+                // 只统计失败：正确口令永远放行，避免演示时把自己锁在门外
+                const failures = await recordLoginFailure(db, body.email, address);
+                if (failures >= LOGIN_MAX_FAILURES)
+                    throw new ApiProblem(429, 'too_many_attempts', '同一账号连续登录失败次数过多，请 10 分钟后再试');
+                throw error;
+            }
+            await clearLoginFailures(db, body.email, address);
             await audit(db, result.user, '账号登录', result.user.email);
             return Response.json({ data: result.user }, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Set-Cookie': result.cookie } });
         }
@@ -309,8 +321,12 @@ async function handle(request: Request, context: {
         }
         if (method === 'GET' && key === 'models/status')
             return json(await modelStatus(db));
-        if (method === 'GET' && key === 'models/selfcheck')
-            return json(await selfCheck(db));
+        if (method === 'GET' && key === 'models/selfcheck') {
+            // 自检不落业务表，但要留一条审计：谁在什么时候跑过自检（排障时有用）
+            const result = await selfCheck(db);
+            await audit(db, user, '运行模型自检', 'selfcheck', result.checks.map((check) => `${check.key}:${check.status}`).join(','));
+            return json(result);
+        }
         if (method === 'GET' && key === 'imports/douyin')
             return json(await douyinStatus(db));
         if (method === 'POST' && key === 'imports/douyin') {

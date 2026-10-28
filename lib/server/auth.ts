@@ -127,3 +127,49 @@ catch { /* ignore */ } const appOrigin = (runtime().APP_ORIGIN || '').trim().rep
     allowed.add('http://' + host);
 } if (!allowed.has(normalized))
     throw new ApiProblem(403, 'origin_rejected', '请求来源不匹配', { origin: normalized, allowed: [...allowed] }); }
+
+/** 登录失败限速：10 分钟内同一「账号+来源地址」失败 10 次后，后续错误口令返回 429。
+ *  注意只在口令错误时计数，正确口令永远放行——否则演示时连续输错会把管理员锁在门外。 */
+export const LOGIN_MAX_FAILURES = 10;
+const LOGIN_WINDOW_SECONDS = 600;
+
+export function clientAddress(request: Request) {
+    const headers = request.headers;
+    const candidates = [
+        headers.get('cf-connecting-ip'),
+        headers.get('x-real-ip'),
+        (headers.get('x-forwarded-for') || '').split(',')[0].trim(),
+    ];
+    return candidates.find((value) => value && value.length > 0) || 'local';
+}
+
+function loginWindowStart() {
+    return new Date(Date.now() - LOGIN_WINDOW_SECONDS * 1000).toISOString();
+}
+
+export async function recordLoginFailure(db: D1Database, email: string, address: string) {
+    const normalized = email.toLowerCase().trim();
+    try {
+        await db.prepare('INSERT INTO login_attempts(id,email,ip,ok,created_at) VALUES(?,?,?,?,?)')
+            .bind(uuid('attempt'), normalized, address, 0, now()).run();
+        // 顺手清理 7 天前的记录，避免这张表无限长
+        await db.prepare('DELETE FROM login_attempts WHERE created_at < ?')
+            .bind(new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()).run();
+        const row = await first(db, 'SELECT COUNT(*) AS n FROM login_attempts WHERE email=? AND ip=? AND ok=0 AND created_at > ?', normalized, address, loginWindowStart());
+        return Number(row?.n ?? 0);
+    }
+    catch {
+        // 迁移 0005 还没应用时不要因为限速表缺失把登录打成 500：限速是尽力而为的保护
+        return 0;
+    }
+}
+
+export async function clearLoginFailures(db: D1Database, email: string, address: string) {
+    try {
+        await db.prepare('DELETE FROM login_attempts WHERE email=? AND ip=? AND ok=0')
+            .bind(email.toLowerCase().trim(), address).run();
+    }
+    catch {
+        // 同上：表不存在就跳过
+    }
+}
