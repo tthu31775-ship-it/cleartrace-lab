@@ -4,7 +4,7 @@ import { authenticate, authorize, clearSessionCookie, createSession, ensureAdmin
 import { account, ApiProblem, audit, database, dataset, first, now, rows, runtime, uuid } from '@/lib/server/db';
 import { ensureSeed } from '@/lib/server/seed';
 import { ensureCoordinationSeed, exportLeads, getEvent, getEventGraph, getLead, leadsOfAccount, listEvents, listLeads, parseLeadQuery, reviewLead } from '@/lib/server/coordination';
-import { douyinStatus, importDouyinSample, listComments, listPredictions, modelStatus, screenComments } from '@/lib/server/screening';
+import { douyinStatus, importDouyinSample, listComments, listPredictions, modelStatus, screenComments, selfCheck } from '@/lib/server/screening';
 import { scanCoordinationEvent } from '@/lib/server/scan';
 import { exportBackup, exportSchema, exportSummary, exportTable, EXPORT_KEYS } from '@/lib/server/exports';
 import { ensureDatasetKinds, getDatasetDetail } from '@/lib/server/dataset-detail';
@@ -309,6 +309,8 @@ async function handle(request: Request, context: {
         }
         if (method === 'GET' && key === 'models/status')
             return json(await modelStatus(db));
+        if (method === 'GET' && key === 'models/selfcheck')
+            return json(await selfCheck(db));
         if (method === 'GET' && key === 'imports/douyin')
             return json(await douyinStatus(db));
         if (method === 'POST' && key === 'imports/douyin') {

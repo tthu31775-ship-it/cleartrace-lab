@@ -3,9 +3,9 @@
 // 所有数据来自业务后端;模型分数、排序分、复核结论分别展示,不合并成一个概率。
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download, Filter, GitBranch, Layers, Network, Play, RefreshCw, Search, ShieldAlert, Upload } from 'lucide-react';
-import type { EventDetail, LeadDetail, LeadPage, LeadReviewStatus, ModelStatus, ScreeningResult } from '@/lib/contracts';
-import { api, Badge, downloadCsv, Empty, SectionTitle, Spinner } from './common';
+import { AlertCircle, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Download, Filter, GitBranch, Layers, Network, Play, RefreshCw, Search, ShieldAlert, Upload } from 'lucide-react';
+import type { CommentRecord, CoordinationLead, EventDetail, LeadDetail, LeadPage, LeadReviewStatus, ModelStatus, ScreeningResult, SelfCheckResult } from '@/lib/contracts';
+import { api, Badge, downloadCsv, downloadText, Empty, SectionTitle, Spinner } from './common';
 import type { PanelProps } from './panels';
 
 const bjTime = (t: number | null | undefined, withDate = true) => {
@@ -166,7 +166,7 @@ export function Leads(p: PanelProps) {
                 </div>
             </div>
         </section>
-        {openId && <LeadDrawer id={openId} canEdit={p.canEdit} notify={p.notify} onClose={() => { setOpenId(null); load(); }}/>}
+        {openId && <LeadDrawer id={openId} canEdit={p.canEdit} notify={p.notify} onOpenLead={next => setOpenId(next)} onClose={() => { setOpenId(null); load(); }}/>}
     </>;
 }
 
@@ -176,7 +176,9 @@ interface EventGraph {
     groups: { leadId: number; representative: string | null; members: string[]; starEdges: { source: string; target: string; similarity: number | null }[] }[];
 }
 
-function LeadDrawer({ id, canEdit, notify, onClose }: { id: string; canEdit: boolean; notify: (text: string, type?: 'success' | 'error') => void; onClose: () => void }) {
+function LeadDrawer({ id, canEdit, notify, onOpenLead, onClose }: { id: string; canEdit: boolean; notify: (text: string, type?: 'success' | 'error') => void; onOpenLead: (id: string) => void; onClose: () => void }) {
+    const [accountLeads, setAccountLeads] = useState<{ key: string; items: CoordinationLead[] } | null>(null);
+    const [accountLoading, setAccountLoading] = useState('');
     const [lead, setLead] = useState<LeadDetail | null>(null);
     const [event, setEvent] = useState<EventDetail | null>(null);
     const [graph, setGraph] = useState<EventGraph | null>(null);
@@ -323,7 +325,29 @@ function LeadDrawer({ id, canEdit, notify, onClose }: { id: string; canEdit: boo
                     <section className="detail-section">
                         <SectionTitle title="成员表" subtitle="一个来源账号键对应一个成员;同一条评论可能出现在多个群组。"/>
                         <div className="table-scroll"><table className="data-table"><thead><tr><th>来源账号键</th><th>评论数</th><th>首次</th><th>最近</th><th>备注</th></tr></thead>
-                            <tbody>{lead.members.map(m => <tr key={m.memberKey}><td className="mono">{m.memberKey}</td><td>{m.commentCount}</td><td>{bjTime(m.firstTime)}</td><td>{bjTime(m.lastTime)}</td><td>{m.isRepresentative ? <Badge kind="red">代表评论作者</Badge> : '—'}</td></tr>)}</tbody></table></div>
+                            <tbody>{lead.members.map(m => <tr key={m.memberKey}><td className="mono">{m.memberKey}</td><td>{m.commentCount}</td><td>{bjTime(m.firstTime)}</td><td>{bjTime(m.lastTime)}</td><td>{m.isRepresentative ? <Badge kind="red">代表评论作者</Badge> : '—'}</td><td className="align-right"><button className="text-link" disabled={accountLoading === m.memberKey} onClick={async () => {
+                                setAccountLoading(m.memberKey);
+                                try {
+                                    const found = await api<{ accountKey: string; leads: CoordinationLead[] }>('/leads/account?key=' + encodeURIComponent(m.memberKey) + '&namespace=coordination');
+                                    setAccountLeads({ key: m.memberKey, items: found.leads });
+                                }
+                                catch (e) {
+                                    notify(e instanceof Error ? e.message : '查询失败', 'error');
+                                }
+                                finally {
+                                    setAccountLoading('');
+                                }
+                            }}>相关线索<ChevronRight size={13}/></button></td></tr>)}</tbody></table></div>
+                        {accountLeads && <>
+                            <div className="inline-stats">
+                                <span>账号 <strong className="mono">{accountLeads.key}</strong></span>
+                                <span>出现于 <strong>{accountLeads.items.length}</strong> 组线索</span>
+                                <button className="text-link" onClick={() => setAccountLeads(null)}>收起</button>
+                            </div>
+                            {accountLeads.items.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>线索</th><th>来源事件</th><th>账号数</th><th>评论数</th><th>复核状态</th><th className="align-right">操作</th></tr></thead>
+                                <tbody>{accountLeads.items.map(other => <tr key={other.id}><td className="mono">{other.id}</td><td className="mono">{other.eventRef}</td><td>{other.accountCount}</td><td>{other.commentCount}</td><td><Badge kind={leadStatusKind(other.reviewStatus)}>{leadStatusNames[other.reviewStatus as LeadReviewStatus]}</Badge></td><td className="align-right">{other.id === id ? <span className="muted small-text">当前</span> : <button className="text-link" onClick={() => { setAccountLeads(null); onOpenLead(other.id); }}>打开<ChevronRight size={13}/></button>}</td></tr>)}</tbody></table></div>
+                                : <p className="source-caption">这个账号在当前批次里只出现在本组线索中(只在本来源命名空间内匹配,不做跨平台合并)。</p>}
+                        </>}
                     </section>
 
                     <section className="detail-section">
@@ -399,6 +423,11 @@ export function Screening(p: PanelProps) {
     const [error, setError] = useState('');
     const [history, setHistory] = useState<PredictionHistory | null>(null);
     const [douyin, setDouyin] = useState<DouyinStatus | null>(null);
+    const [libPage, setLibPage] = useState(1);
+    const [libQ, setLibQ] = useState('');
+    const [libNs, setLibNs] = useState('');
+    const [lib, setLib] = useState<{ items: CommentRecord[]; total: number; page: number; pageSize: number } | null>(null);
+    const [libLoading, setLibLoading] = useState(false);
 
     const loadHistory = useCallback(async () => {
         try {
@@ -413,7 +442,24 @@ export function Screening(p: PanelProps) {
         catch { /* 未导入时保持空 */ }
     }, []);
 
+    const loadLibrary = useCallback(async () => {
+        setLibLoading(true);
+        try {
+            const params = new URLSearchParams({ page: String(libPage), pageSize: '10' });
+            if (libQ.trim())
+                params.set('q', libQ.trim());
+            if (libNs)
+                params.set('namespace', libNs);
+            setLib(await api<{ items: CommentRecord[]; total: number; page: number; pageSize: number }>('/comments?' + params.toString()));
+        }
+        catch { /* 库列表失败不阻塞筛查 */ }
+        finally {
+            setLibLoading(false);
+        }
+    }, [libPage, libQ, libNs]);
+
     useEffect(() => { loadHistory(); loadDouyin(); }, [loadHistory, loadDouyin]);
+    useEffect(() => { loadLibrary(); }, [loadLibrary]);
 
     async function submit(texts: string[]) {
         const items = texts.map(t => t.trim()).filter(Boolean).map((content, i) => ({ content, commentId: `ui_${Date.now().toString(36)}_${i}` }));
@@ -428,6 +474,7 @@ export function Screening(p: PanelProps) {
             setResult(res);
             p.notify(`筛查完成:成功 ${res.persisted} 条,失败 ${res.failed} 条。`);
             await loadHistory();
+            await loadLibrary();
         }
         catch (e) {
             setError(e instanceof Error ? e.message : '筛查请求失败');
@@ -499,6 +546,38 @@ export function Screening(p: PanelProps) {
             {history && !history.items.length && <Empty title="还没有筛查记录" text="提交一条评论后,结果会保存在这里。"/>}
         </section>
         <section className="card">
+            <SectionTitle title="评论库" subtitle="已入库的全部评论:协同线索批次、抖音小样本、手工筛查。可以直接挑一条重新检测。" action={<button className="button button-soft" onClick={loadLibrary}><RefreshCw size={15} className={libLoading ? 'spin' : ''}/>刷新</button>}/>
+            <div className="table-toolbar filter-toolbar">
+                <label className="search-input"><Search size={16}/><input value={libQ} onChange={e => { setLibPage(1); setLibQ(e.target.value); }} placeholder="搜索评论原文、昵称或账号键" aria-label="搜索评论"/></label>
+                <div className="filter-group"><Filter size={15}/>
+                    <select value={libNs} onChange={e => { setLibPage(1); setLibNs(e.target.value); }} aria-label="来源">
+                        <option value="">全部来源</option>
+                        <option value="coordination">协同线索批次</option>
+                        <option value="douyin">抖音小样本</option>
+                        <option value="manual">手工筛查</option>
+                    </select>
+                </div>
+                <span className="muted small-text">共 {lib?.total ?? 0} 条</span>
+            </div>
+            <div className="table-scroll"><table className="data-table"><thead><tr><th>来源</th><th>作者 / 账号键</th><th>评论原文</th><th>时间</th><th>精度</th><th className="align-right">操作</th></tr></thead>
+                <tbody>{(lib?.items ?? []).map(item => <tr key={item.id}>
+                    <td><Badge kind={item.sourceNamespace === 'coordination' ? 'purple' : item.sourceNamespace === 'douyin' ? 'blue' : 'neutral'}>{item.sourceNamespace === 'coordination' ? '协同' : item.sourceNamespace === 'douyin' ? '抖音' : '手工'}</Badge></td>
+                    <td>{item.authorName || '—'}<small className="cell-secondary mono">{item.sourceAccountKey.slice(0, 16)}{item.sourceAccountKey.length > 16 ? '…' : ''}</small></td>
+                    <td className="small-text">{item.content.slice(0, 60)}{item.content.length > 60 ? '…' : ''}</td>
+                    <td>{item.publishTime ? bjTime(item.publishTime) : '—'}</td>
+                    <td>{item.timePrecision === 'approximate' ? '近似' : item.timePrecision === 'minute' ? '分钟' : '未知'}</td>
+                    <td className="align-right"><button className="text-link" disabled={busy} onClick={() => submit([item.content])}>检测这条<ArrowRight size={13}/></button></td>
+                </tr>)}</tbody></table></div>
+            {(lib?.total ?? 0) > 10 && <div className="table-footer">
+                <span>第 {libPage} / {Math.max(1, Math.ceil((lib?.total ?? 0) / 10))} 页</span>
+                <div className="pagination">
+                    <button className="icon-button" disabled={libPage <= 1} onClick={() => setLibPage(page2 => Math.max(1, page2 - 1))} aria-label="上一页"><ChevronLeft size={16}/></button>
+                    <button className="icon-button" disabled={libPage >= Math.ceil((lib?.total ?? 0) / 10)} onClick={() => setLibPage(page2 => page2 + 1)} aria-label="下一页"><ChevronRight size={16}/></button>
+                </div>
+            </div>}
+            {lib && !lib.items.length && <Empty title="没有匹配的评论" text="换个关键词,或清空来源筛选。"/>}
+        </section>
+        <section className="card">
             <SectionTitle title="抖音公开评论区小样本" subtitle="5 个作品 / 231 条评论 / 215 个账号;发布时间为相对时间推算的近似值。" action={<button className="button button-soft" disabled={busy} onClick={importDouyin}><Upload size={15}/>{douyin?.imported ? '重新校验导入' : '导入样本'}</button>}/>
             {douyin && <div className="inline-stats">
                 <span>作品 <strong>{douyin.works}</strong></span>
@@ -520,24 +599,88 @@ const statusKind = (status: string) => status === 'ready' ? 'teal' : status === 
 export function Models(p: PanelProps) {
     const [status, setStatus] = useState<ModelStatus | null>(null);
     const [error, setError] = useState('');
+    const [checking, setChecking] = useState(false);
+    const [check, setCheck] = useState<SelfCheckResult | null>(null);
+    const [checkError, setCheckError] = useState('');
+
     useEffect(() => {
         api<ModelStatus>('/models/status').then(setStatus).catch(e => setError(e instanceof Error ? e.message : '状态加载失败'));
     }, []);
+
+    async function runSelfCheck() {
+        setChecking(true);
+        setCheckError('');
+        try {
+            const result = await api<SelfCheckResult>('/models/selfcheck');
+            setCheck(result);
+            const failed = result.checks.filter(item => item.status === 'fail').length;
+            p.notify(failed ? `自检完成:${failed} 项未通过` : '自检完成:可运行能力全部通过', failed ? 'error' : 'success');
+        }
+        catch (e) {
+            setCheckError(e instanceof Error ? e.message : '自检失败');
+        }
+        finally {
+            setChecking(false);
+        }
+    }
+
+    function downloadStatus() {
+        if (!status)
+            return;
+        const payload = { exportedAt: new Date().toISOString(), status, selfCheck: check };
+        downloadText('清源-能力清单.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+        p.notify('能力清单已下载。');
+    }
+
     if (error)
         return <div className="inline-error"><AlertCircle size={16}/>{error}</div>;
     if (!status)
         return <div className="loading-block"><Spinner text="正在读取模型状态"/></div>;
+
+    const actionOf: Record<string, { label: string; run: () => void } | null> = {
+        comment_classification: { label: '去评论检测', run: () => p.go('screening') },
+        coordination_lookup: { label: '去协同线索', run: () => p.go('leads') },
+        coordination_scan: { label: '去事件扫描', run: () => p.go('scan') },
+        behavior_baseline: { label: '去摸排任务', run: () => p.go('tasks') },
+        account_bert: null,
+    };
+    const checkOf = (key: string) => check?.checks.find(item => item.key === key);
+
     return <>
         <div className="notice-mark"><GitBranch size={17}/><span>五种能力<strong>分开</strong>计价与展示:评论文本筛查、协同线索查询、新事件在线扫描、账号 BERT、行为规则基线。它们不会拼成一个"总水军概率"。</span></div>
+        <section className="card">
+            <SectionTitle title="能力自检" subtitle="真的跑一遍:文本模型跑探针、线索查询真查库、在线扫描用 5 条合成评论跑一次内存扫描(不落库)。" action={<div className="filter-group"><button className="button button-primary" disabled={checking} onClick={runSelfCheck}>{checking ? <><RefreshCw size={15} className="spin"/>自检中</> : <><Play size={15}/>运行自检</>}</button><button className="button button-soft" onClick={downloadStatus}><Download size={15}/>下载能力清单</button></div>}/>
+            {checkError && <div className="inline-error"><AlertCircle size={16}/>{checkError}</div>}
+            {check ? <div className="table-scroll"><table className="data-table"><thead><tr><th>能力</th><th>结果</th><th>耗时</th><th>实测说明</th></tr></thead>
+                <tbody>{check.checks.map(item => <tr key={item.key}>
+                    <td><strong>{item.name}</strong><small className="cell-secondary mono">{item.key}</small></td>
+                    <td><Badge kind={item.status === 'pass' ? 'teal' : item.status === 'fail' ? 'red' : 'neutral'} dot>{item.status === 'pass' ? '通过' : item.status === 'fail' ? '失败' : '未就绪'}</Badge></td>
+                    <td>{item.latencyMs ? `${item.latencyMs} ms` : '—'}</td>
+                    <td className="small-text">{item.detail}</td>
+                </tr>)}</tbody></table></div>
+                : <p className="source-caption">点「运行自检」会用当前服务端数据实际跑一次,结果只用于确认能力可用,不写库。</p>}
+            {check && <p className="source-caption">自检时间 {new Date(check.ranAt).toLocaleString('zh-CN', { hour12: false })}</p>}
+        </section>
         <div className="integration-grid">
-            {status.capabilities.map(cap => <section className="card integration-card" key={cap.key}>
-                <div className="integration-card-head">
-                    <div><span className="tiny-label mono">{cap.key}</span><h3>{cap.name}</h3></div>
-                    <Badge kind={statusKind(cap.status)} dot>{statusNames[cap.status] || cap.status}</Badge>
-                </div>
-                <p>{cap.detail}</p>
-                <div className="integration-card-foot"><span className="mono small-text">{cap.contract}</span><span className="muted">版本 {cap.version}</span></div>
-            </section>)}
+            {status.capabilities.map(cap => {
+                const probe = checkOf(cap.key);
+                const action = actionOf[cap.key];
+                return <section className="card integration-card" key={cap.key}>
+                    <div className="integration-card-head">
+                        <div><span className="tiny-label mono">{cap.key}</span><h3>{cap.name}</h3></div>
+                        <Badge kind={statusKind(cap.status)} dot>{statusNames[cap.status] || cap.status}</Badge>
+                    </div>
+                    <p>{cap.detail}</p>
+                    <div className="integration-card-foot">
+                        <span className="mono small-text">{cap.contract}</span>
+                        <span className="muted">版本 {cap.version}</span>
+                    </div>
+                    <div className="integration-card-foot">
+                        {probe ? <span className="small-text">自检:{probe.status === 'pass' ? '通过' : probe.status === 'fail' ? '失败' : '未就绪'}{probe.latencyMs ? ` · ${probe.latencyMs}ms` : ''}</span> : <span className="small-text muted">未自检</span>}
+                        {action && <button className="text-link" onClick={action.run}>{action.label}<ArrowRight size={14}/></button>}
+                    </div>
+                </section>;
+            })}
         </div>
         <div className="dashboard-bottom" style={{ alignItems: 'start' }}>
             <section className="card">
@@ -548,6 +691,7 @@ export function Models(p: PanelProps) {
                 <div className="key-value-row"><span>单次上限</span><strong>{status.wb01.maxBatch} 条 · 单条 {status.wb01.maxLength} 字</strong></div>
                 <div className="key-value-row"><span>训练样本</span><strong>{status.wb01.trainSize ?? '—'}</strong></div>
                 <p className="source-caption">{status.wb01.note}</p>
+                <div className="filter-group"><button className="button button-soft" onClick={() => p.go('screening')}><Play size={15}/>去测一条评论</button></div>
             </section>
             <section className="card">
                 <SectionTitle title="协同线索批次" subtitle="预计算离线结果,本站只做读取、复核与导出。" action={<Badge kind="teal" dot>已就绪</Badge>}/>
@@ -555,10 +699,11 @@ export function Models(p: PanelProps) {
                 <div className="key-value-row"><span>数据版本</span><strong>{status.coordination.version}</strong></div>
                 <div className="key-value-row"><span>线索 / 事件</span><strong>{status.coordination.leads} / {status.coordination.events}</strong></div>
                 <p className="source-caption">{status.coordination.note}</p>
+                <div className="filter-group"><button className="button button-soft" onClick={() => p.go('leads')}>查看线索<ArrowRight size={14}/></button><button className="button button-soft" onClick={() => p.go('scan')}>跑一次扫描<ArrowRight size={14}/></button></div>
             </section>
         </div>
         <section className="card">
-            <SectionTitle title="数据批次" subtitle="导入批次可重复执行,幂等键保证不翻倍。"/>
+            <SectionTitle title="数据批次" subtitle="导入批次可重复执行,幂等键保证不翻倍。" action={<button className="button button-soft" onClick={() => p.go('datasets')}>去数据集<ArrowRight size={14}/></button>}/>
             <div className="key-value-row"><span>抖音小样本</span><strong className="mono">{status.dataset.batch}</strong></div>
             <div className="key-value-row"><span>作品 / 评论 / 账号</span><strong>{status.dataset.works} / {status.dataset.comments} / {status.dataset.accounts}</strong></div>
             <div className="key-value-row"><span>是否已入库</span><strong>{status.dataset.imported ? '已导入' : '未导入'}</strong></div>

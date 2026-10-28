@@ -2,6 +2,8 @@
 // 所有模型调用都在服务端完成;浏览器只拿业务结果,不接触模型权重或密钥。
 
 import douyinSample from '../data/douyin-sample.json';
+import { runCoordinationScan, DEFAULT_SCAN_PARAMETERS } from '../core/coordination-scan';
+import { scoreAccount } from '../core/detection';
 import { predictComment, WB01_MAX_BATCH, WB01_MAX_LENGTH, WB01_THRESHOLD, WB01_VERSION, wb01ModelInfo } from '../core/wb01';
 import type { CommentPrediction, CommentRecord, ModelStatus, ScreeningItem, ScreeningResult, User } from '../contracts';
 import { ApiProblem, audit, first, insertMany, now, rows, uuid, type Row } from './db';
@@ -361,6 +363,86 @@ export async function modelStatus(db: D1Database): Promise<ModelStatus> {
             'IP 属地是平台公开字段,不是网络 IP,不能作为同设备或协同关系依据。',
         ],
     };
+}
+
+export interface CapabilityCheck {
+    key: string;
+    name: string;
+    status: 'pass' | 'fail' | 'not_ready' | 'planned';
+    latencyMs: number;
+    detail: string;
+}
+
+/**
+ * 能力自检:真的跑一遍,不是读静态声明。
+ * 文本模型跑一条固定探针;线索查询真的查库;在线扫描用 5 条合成评论跑一次内存扫描(不落库);
+ * BERT 明确 not_ready;行为基线用一组固定特征跑规则打分。
+ */
+export async function selfCheck(db: D1Database): Promise<{ checks: CapabilityCheck[]; ranAt: string }> {
+    const checks: CapabilityCheck[] = [];
+
+    const probeStarted = performance.now();
+    try {
+        const probe = predictComment('这事必须严查,转发让更多人看到!');
+        checks.push({
+            key: 'comment_classification', name: '评论文本筛查', status: 'pass',
+            latencyMs: Math.round((performance.now() - probeStarted) * 100) / 100,
+            detail: `模型 ${probe.model_version},探针得分 ${probe.probability}(阈值 ${probe.threshold})`,
+        });
+    }
+    catch (error) {
+        checks.push({ key: 'comment_classification', name: '评论文本筛查', status: 'fail', latencyMs: 0, detail: error instanceof Error ? error.message : '推理失败' });
+    }
+
+    const lookupStarted = performance.now();
+    try {
+        const leads = await first(db, 'SELECT COUNT(*) AS total FROM coordination_leads');
+        const events = await first(db, 'SELECT COUNT(*) AS total FROM events');
+        checks.push({
+            key: 'coordination_lookup', name: '协同线索查询', status: 'pass',
+            latencyMs: Math.round((performance.now() - lookupStarted) * 100) / 100,
+            detail: `库内 ${Number(leads?.total ?? 0)} 组线索 / ${Number(events?.total ?? 0)} 个事件`,
+        });
+    }
+    catch (error) {
+        checks.push({ key: 'coordination_lookup', name: '协同线索查询', status: 'fail', latencyMs: 0, detail: error instanceof Error ? error.message : '查询失败' });
+    }
+
+    const scanStarted = performance.now();
+    try {
+        const probeComments = Array.from({ length: 5 }, (_, index) => ({
+            accountId: `selfcheck_${index}`, text: '自检探针文本同一模板刷屏', publishTime: 1720000000 + index * 30,
+        }));
+        const scan = runCoordinationScan({ comments: probeComments, parameters: DEFAULT_SCAN_PARAMETERS });
+        checks.push({
+            key: 'coordination_scan', name: '新事件在线扫描', status: scan.groups.length > 0 ? 'pass' : 'fail',
+            latencyMs: Math.round((performance.now() - scanStarted) * 100) / 100,
+            detail: `5 条合成评论 → 保留 ${scan.comments.length} 条、命中 ${scan.groups.length} 组(未落库)`,
+        });
+    }
+    catch (error) {
+        checks.push({ key: 'coordination_scan', name: '新事件在线扫描', status: 'fail', latencyMs: 0, detail: error instanceof Error ? error.message : '扫描失败' });
+    }
+
+    checks.push({
+        key: 'account_bert', name: '账号 BERT 模型', status: 'not_ready', latencyMs: 0,
+        detail: '未交付权重与特征契约,正式接口返回 503;自检不会用 mock 分数冒充结果',
+    });
+
+    const baselineStarted = performance.now();
+    try {
+        const result = scoreAccount({ postsCount: 2400, followersCount: 20, followingCount: 1200, accountAgeDays: 21, duplicateRatio: 0.8, burstRatio: 0.84, nightRatio: 0.5, avgIntervalSeconds: 9 });
+        checks.push({
+            key: 'behavior_baseline', name: '行为规则基线', status: 'pass',
+            latencyMs: Math.round((performance.now() - baselineStarted) * 100) / 100,
+            detail: `样例特征得分 ${result.score}(${result.riskLevel}),模型 ${result.modelVersion}`,
+        });
+    }
+    catch (error) {
+        checks.push({ key: 'behavior_baseline', name: '行为规则基线', status: 'fail', latencyMs: 0, detail: error instanceof Error ? error.message : '打分失败' });
+    }
+
+    return { checks, ranAt: now() };
 }
 
 export const commentIdOf = (namespace: string, key: string) => `comment_${namespace}_${key}`;

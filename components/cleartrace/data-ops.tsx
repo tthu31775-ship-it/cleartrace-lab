@@ -75,7 +75,7 @@ export function Scan(p: PanelProps) {
         <div className="notice-mark"><ShieldAlert size={17}/><span>在线扫描用<strong>在线清洗口径</strong>(10 条通用短句)运行,与交付的离线 803 条<strong>不是同一次运行</strong>,不能互相覆盖;结果里的排序分是启发式加权分,不是身份概率。</span></div>
         <div className="dashboard-bottom" style={{ alignItems: 'start' }}>
             <section className="card">
-                <SectionTitle title="评论输入" subtitle="支持接口包里的 JSON 结构,或每行「账号键<TAB>Unix秒<TAB>原文」;单次 1-5000 条。" action={<button className="button button-soft" onClick={() => setRaw(SAMPLE)}>填入示例</button>}/>
+                <SectionTitle title="评论输入" subtitle="支持接口包里的 JSON 结构,或每行「账号键<TAB>Unix秒<TAB>原文」;单次 1-5000 条。" action={<button className="button button-soft" onClick={() => { setRaw(SAMPLE); setEventId('demo-event-001'); p.notify('已填入 6 条示例评论,可直接点「开始扫描并入库」。'); }}>填入示例</button>}/>
                 <label className="field"><span>事件标识(必填,用于追溯)</span><input value={eventId} onChange={e => setEventId(e.target.value)} placeholder="例如 news-20261027-001"/></label>
                 <label className="field"><span>评论数据</span><textarea rows={12} value={raw} onChange={e => setRaw(e.target.value)} spellCheck={false}/></label>
             </section>

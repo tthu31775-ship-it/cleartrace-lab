@@ -233,9 +233,10 @@ export async function exportTable(db: D1Database, user: User, key: string, forma
     if (!spec)
         throw new ApiProblem(404, 'export_unknown', '未知的导出对象');
     const filter = filterOf(key, params);
+    // 统一套一层子查询:有些表的 SQL 自带 LIMIT/ORDER BY,直接再拼 LIMIT 会变成双 LIMIT 语法错误。
     const sql = filter
         ? `SELECT * FROM (${spec.sql}) WHERE ${filter.where} LIMIT ${MAX_ROWS}`
-        : `${spec.sql} LIMIT ${MAX_ROWS}`;
+        : `SELECT * FROM (${spec.sql}) LIMIT ${MAX_ROWS}`;
     const data = filter ? await rows(db, sql, ...filter.args) : await rows(db, sql);
     await audit(db, user, '导出数据', spec.label, `${data.length} 行;格式 ${format}`);
     const stamp = now().slice(0, 10);

@@ -365,6 +365,17 @@ export interface ModelCapability {
     detail: string;
     contract?: string;
 }
+export interface CapabilityCheck {
+    key: string;
+    name: string;
+    status: 'pass' | 'fail' | 'not_ready' | 'planned';
+    latencyMs: number;
+    detail: string;
+}
+export interface SelfCheckResult {
+    checks: CapabilityCheck[];
+    ranAt: string;
+}
 export interface ModelStatus {
     capabilities: ModelCapability[];
     wb01: {

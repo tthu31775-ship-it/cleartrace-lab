@@ -24,3 +24,9 @@
 /* 数据集详情里的下载区 */
 .download-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0 6px;padding:14px 16px;border:1px dashed #dbe7ea;border-radius:8px;background:#fbfdfd;flex-wrap:wrap}
 .download-row .tiny-label{color:#7d949e}
+
+/* 能力卡:3 列均分 + 顶部对齐,5 张卡不会把最后一张拉成竖条 */
+.integration-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:start}
+.integration-grid .integration-card{height:100%}
+@media (max-width:1180px){.integration-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media (max-width:760px){.integration-grid{grid-template-columns:1fr!important}}
