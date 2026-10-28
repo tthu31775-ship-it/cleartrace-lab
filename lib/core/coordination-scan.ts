@@ -255,10 +255,16 @@ export function prepareOnlineComments(raw: unknown[]): PreparedComments {
 
     raw.forEach((item, index) => {
         const row = (item ?? {}) as Record<string, unknown>;
-        const accountId = typeof row.accountId === 'string' ? row.accountId.trim() : '';
-        const text = typeof row.text === 'string' ? row.text : '';
-        const stamp = row.publishTime;
-        if (!accountId || !text.trim() || text.length > 2000 || typeof stamp !== 'number' || !Number.isFinite(stamp)) {
+        // 同时接受两种写法：前端/文档用 accountId+text+publishTime，算法包与内部脚本用 uid+text+time。
+        // 以前只认前者，粘贴算法包格式的 JSON 会被整批判成"字段缺失"，看起来像扫描不工作。
+        const accountId = typeof row.accountId === 'string' ? row.accountId.trim()
+            : typeof row.uid === 'string' ? row.uid.trim() : '';
+        const text = typeof row.text === 'string' ? row.text
+            : typeof row.content === 'string' ? row.content : '';
+        const stamp = typeof row.publishTime === 'number' ? row.publishTime
+            : typeof row.time === 'number' ? row.time
+                : Number(row.publishTime ?? row.time);
+        if (!accountId || !text.trim() || text.length > 2000 || !Number.isFinite(stamp)) {
             bump('invalid_field');
             return;
         }

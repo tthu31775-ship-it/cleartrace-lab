@@ -1,4 +1,4 @@
-﻿# 清源 ClearTrace：模型接入与试用版实测记录
+# 清源 ClearTrace：模型接入与试用版实测记录
 
 > 按《ClearTrace 模型接入与试用版规划（第一轮）》执行的增量交付记录。所有数字来自真实执行，不是预期值。
 > 执行日期：2026-10-27（北京时间）
@@ -483,4 +483,77 @@ d7c566f docs(report): 第三轮复核记录、功能地图与验收日志
 `https://cleartrace-lab.app.workbuddy.host/?sharecode=OG2AYMRQZQ` 由使用者在 2026-10-28 确认**仍可访问**。
 本机解析该域名得到的是内网地址，所以本轮的 93 项验收、按钮审计都是在本地实例上做的；线上版本比本地落后两个提交，
 下次发布需要重新执行 `npm run build && node scripts/selfhost.mjs`（托管层不会自动构建）。
+
+---
+
+# 追加：第五轮（全量完整性核查：库、数据、造数据、功能）
+
+## 31. 数据库体检（2026-10-28，`PRAGMA integrity_check`）
+
+| 项 | 结果 |
+| --- | --- |
+| `integrity_check` | **ok** |
+| `foreign_key_check` | **0 条违规** |
+| 迁移台账 | 6 条（`0000`–`0005`，含登录限流） |
+| 索引 | 33 个 |
+| 主库文件 | 11,399,168 字节，WAL 已 checkpoint（发布前目录里只剩 `.sqlite`） |
+
+表行数（发布用的干净快照）：
+
+| 表 | 行数 | 说明 |
+| --- | --- | --- |
+| `coordination_leads` | 803 | 预计算批次，`run_id=coordination-20261023` |
+| `coordination_lead_members` | 7,292 | 唯一键 `(lead_id, member_key)` |
+| `comments` | 4,750 | 4519 协同 + 231 抖音 |
+| `graph_edges` | 6,596 | 6,558 带 `lead_id`，38 条 `lead_id=''` 是事件级 reply 边（按设计） |
+| `events` | 178 | 173 协同 + 5 抖音演示 |
+| `accounts` / `datasets` | 240 / 5 | 账号型 3 / 评论型 1 / 线索型 1 |
+| `tasks` / `results` / `reviews` | 6 / 480 / 39 | 演示任务全部 `completed` |
+| `comment_predictions` | 0 | 交付前是干净状态 |
+
+一致性抽查（全部 0）：线索无主事件、成员无主线、账号/任务缺数据集、复核缺复核人、数据集缺 `kind`。
+
+## 32. "能不能往里加数据"：端到端造数验收（新增脚本）
+
+新增 `scripts/e2e-data.py`，把"加数据"这条路整条走通，**26 项全过**：
+
+| 组 | 覆盖 |
+| --- | --- |
+| 导入数据集 | CSV 5 行 → `dryRun:true` 只校验不落库 → `dryRun:false` 落库 → 详情按 `kind=accounts` 出预览 |
+| 任务 | 建任务 → `run` → `completed` → 导出 CSV（748 字节，带 BOM 与公式转义） |
+| 成员 | 加 reviewer → 可登录、可读线索、**不能**导入数据集（403）、**不能**看成员列表（403） → 改密 → 旧密码 401 / 新密码 200 → 删除 |
+| 令牌 | 签发（只返回一次 `ct_…`）→ Bearer 直连 200 → 撤销 → 再调 401 |
+| 抖音 | 导入 5/231/215 → 重复导入仍 5/231/215（幂等） |
+| 扫描 | 6 条同质评论 → `201` 落库，`leads=1` |
+| 导出 | 全库备份 8.3 MB、建表语句 10.6 KB |
+| 保护 | 数据集被任务引用时删除返回 409 |
+
+## 33. 本轮修掉的一个真问题：扫描只认一种字段名
+
+`prepareOnlineComments` 原来只认 `accountId + text + publishTime`（前端/文档格式）。
+算法包与内部脚本习惯写 `uid + text + time`，用这种 JSON 去扫描会被整批判成 `invalid_field`，
+表现就是"点扫描没反应/0 组"，很像功能坏了。
+
+现在两种写法都认（`accountId|uid`、`publishTime|time`、`text|content`），并在 `test-core` 的 9 项扫描对账上复跑无回归。
+
+## 34. 全量验收汇总（本轮重跑，全绿）
+
+| 层 | 命令 | 结果 |
+| --- | --- | --- |
+| 类型 | `tsc --noEmit` | 0 错 |
+| 算法对账 | `node scripts/test-core.mjs` | 51 + 9 |
+| 后端单测 | `node scripts/test-backend.mjs` | 11 |
+| 接口 | `python scripts/verify-model-integration.py` | **93 / 93** |
+| 按钮 | `python scripts/audit-ui.py` + `audit-report.py` | **208 / 208**（禁用 4，无反应 0） |
+| 全流程 | `python scripts/walkthrough.py` | **9 / 9**（含登录页布局回归断言） |
+| 造数据 | `python scripts/e2e-data.py` | **26 / 26** |
+| 登录取证 | `python scripts/verify-auth-throttle.py` | 6 / 6 |
+
+## 35. 明确没做的（不是漏，是有边界）
+
+1. **账号 BERT**：算法组只给模板无权重，`/models/status` 标 `not_ready`，接口 503，不用 mock 分数。
+2. **离线 341 项短句词典**：未交付；在线扫描用 `online-1.0`（10 条），两批用 `runId` 分开，不声称等价。
+3. **任务异步化**：任务在请求内同步执行，样本大时受网关超时限制；队列是独立设计。
+4. **数据集删除没有页面入口**：API 有 `DELETE /datasets/{id}`（被引用返回 409），界面只提供下载与预览。
+5. **全量事件图谱**：只保留"有线索归属"的 4,519 个节点，原图 51,309 个。
 
