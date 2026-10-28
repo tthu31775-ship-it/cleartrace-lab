@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowDownToLine, ArrowRight, CheckCircle2, CheckCheck, ChevronRight, Clock3, Database, FileJson, FileSpreadsheet, FileUp, Info, ListChecks, LoaderCircle, Play, Plus, RefreshCw, ShieldCheck, Upload, UserPlus, X } from 'lucide-react';
-import type { Account, Bootstrap, Dataset, ImportResult, Member, ReviewStatus, Role, Task } from '@/lib/contracts';
-import { api, Badge, date, downloadText, Empty, fmt, Modal, RiskBadge, roleNames, reviewNames, Spinner, TaskBadge } from './common';
+import type { Account, Bootstrap, Dataset, DatasetOverview, ImportResult, Member, ReviewStatus, Role, Task } from '@/lib/contracts';
+type DatasetDetailPayload = { dataset: Dataset; overview: DatasetOverview; accounts: Account[]; comments: import('@/lib/contracts').CommentRecord[]; leads: import('@/lib/contracts').CoordinationLead[] };
+import { api, Badge, date, downloadCsv, downloadText, Empty, fmt, Modal, RiskBadge, roleNames, reviewNames, Spinner, TaskBadge } from './common';
 const csvTemplate = 'account_id,display_name,platform,posts_count,followers_count,following_count,account_age_days,duplicate_ratio,burst_ratio,night_ratio,avg_interval_seconds,related_ids\nsample_001,样例账号一,公开样例,120,40,180,30,0.72,0.65,0.2,45,sample_002\nsample_002,样例账号二,公开样例,35,80,50,365,0.05,0.08,0.15,1200,sample_001\n';
 const jsonTemplate = JSON.stringify([{ account_id: 'sample_001', display_name: '样例账号一', platform: '公开样例', posts_count: 120, followers_count: 40, following_count: 180, account_age_days: 30, duplicate_ratio: 0.72, burst_ratio: 0.65, night_ratio: 0.2, avg_interval_seconds: 45, related_ids: ['sample_002'] }, { account_id: 'sample_002', display_name: '样例账号二', platform: '公开样例', posts_count: 35, followers_count: 80, following_count: 50, account_age_days: 365, duplicate_ratio: 0.05, burst_ratio: 0.08, night_ratio: 0.15, avg_interval_seconds: 1200, related_ids: ['sample_001'] }], null, 2);
 export function ImportModal({ onClose, onSuccess }: {
@@ -162,14 +163,101 @@ export function AccountDetail({ account, data, onClose, onSaved }: {
 }
 function ActivityIcon() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>; }
 function UsersIcon() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M17 15a4 4 0 0 1 4 4v2"/></svg>; }
-export function DatasetDetail({ dataset, accounts, onClose, onTask, onAccount, canEdit }: {
+export function DatasetDetail({ dataset, accounts, onClose, onTask, onAccount, onOpenPage, canEdit }: {
     dataset: Dataset;
     accounts: Account[];
     onClose: () => void;
     onTask: () => void;
     onAccount: (a: Account) => void;
+    onOpenPage: (page: 'screening' | 'leads') => void;
     canEdit: boolean;
-}) { const rows = accounts.filter(a => a.datasetId === dataset.id); return <Modal title={dataset.name} subtitle="数据集详情与账号预览" wide onClose={onClose}><div className="detail-status"><Badge kind="teal" dot>已就绪</Badge><Badge>{dataset.version}</Badge><Badge>{dataset.format.toUpperCase()}</Badge>{dataset.demo && <Badge>合成样例</Badge>}</div><div className="dataset-detail-meta"><div><span>账号记录</span><strong>{fmt(dataset.recordCount)}</strong></div><div><span>数据来源</span><strong>{dataset.source}</strong></div><div><span>导入时间</span><strong>{date(dataset.createdAt)}</strong></div></div><p className="muted">{dataset.description || '数据通过标准字段校验后已入库。'}</p><h3 className="detail-subtitle">账号预览 <span>前 {Math.min(rows.length, 8)} 条</span></h3><div className="table-scroll"><table className="data-table"><thead><tr><th>账号</th><th>平台</th><th>发帖数</th><th>注册天数</th><th>风险等级</th><th /></tr></thead><tbody>{rows.slice(0, 8).map(a => <tr key={a.id}><td><strong>{a.displayName}</strong><small className="cell-secondary">{a.accountId}</small></td><td>{a.platform}</td><td>{a.postsCount}</td><td>{a.accountAgeDays}</td><td><RiskBadge risk={a.riskLevel}/></td><td><button aria-label={'查看 ' + a.displayName} className="icon-button" onClick={() => onAccount(a)}><ChevronRight size={16}/></button></td></tr>)}</tbody></table></div><div className="modal-actions"><button className="button" onClick={onClose}>关闭</button>{canEdit && <button className="button button-primary" onClick={onTask}><Plus size={16}/>基于此数据集新建任务</button>}</div></Modal>; }
+}) {
+    const [detail, setDetail] = useState<DatasetDetailPayload | null>(null);
+    const [error, setError] = useState('');
+    useEffect(() => {
+        let alive = true;
+        api<DatasetDetailPayload>('/datasets/' + dataset.id)
+            .then(next => { if (alive) setDetail(next); })
+            .catch(e => { if (alive) setError(e instanceof Error ? e.message : '数据集详情加载失败'); });
+        return () => { alive = false; };
+    }, [dataset.id]);
+
+    const kindNames: Record<string, string> = { accounts: '账号型', douyin: '评论型', coordination: '线索型' };
+    const kind = detail?.dataset.kind || dataset.kind;
+    const exportTarget = kind === 'coordination'
+        ? { table: 'leads', query: 'runId=' + encodeURIComponent(dataset.version) }
+        : kind === 'douyin'
+            ? { table: 'comments', query: 'datasetId=' + encodeURIComponent(dataset.id) }
+            : { table: 'accounts', query: 'datasetId=' + encodeURIComponent(dataset.id) };
+    async function downloadData(format: 'csv' | 'json') {
+        try {
+            await downloadCsv(`/exports/${exportTarget.table}?${exportTarget.query}&format=${format}`, `清源-${dataset.name}.${format}`);
+        }
+        catch { /* 失败时保持弹窗,不强行关闭 */ }
+    }
+    const overview = detail?.overview;
+    const rows = detail?.accounts?.length ? detail.accounts : accounts.filter(a => a.datasetId === dataset.id).slice(0, 8);
+
+    return <Modal title={dataset.name} subtitle={`数据集详情 · ${kindNames[detail?.dataset.kind || dataset.kind] || '账号型'}`} wide onClose={onClose}>
+        <div className="detail-status"><Badge kind="teal" dot>已就绪</Badge><Badge>{dataset.version}</Badge><Badge>{dataset.format.toUpperCase()}</Badge>{dataset.demo && <Badge>合成样例</Badge>}</div>
+        <div className="dataset-detail-meta">
+            <div><span>{overview?.label || '账号记录'}</span><strong>{fmt(overview?.primary ?? dataset.recordCount)}</strong></div>
+            <div><span>数据来源</span><strong>{dataset.source}</strong></div>
+            <div><span>导入时间</span><strong>{date(dataset.createdAt)}</strong></div>
+        </div>
+        {overview && <div className="inline-stats">{overview.items.map(item => <span key={item.label}>{item.label} <strong>{item.value}</strong></span>)}</div>}
+        <p className="muted">{overview?.note || dataset.description || '数据通过标准字段校验后已入库。'}</p>
+        <div className="download-row">
+            <span className="tiny-label">下载这个数据集</span>
+            <div className="filter-group">
+                <button className="button button-soft" onClick={() => downloadData('csv')}><ArrowDownToLine size={15}/>CSV(Excel 可直接打开)</button>
+                <button className="button button-soft" onClick={() => downloadData('json')}><FileJson size={15}/>JSON(保留原始字段)</button>
+            </div>
+        </div>
+        {error && <div className="inline-error"><AlertCircle size={16}/>{error}</div>}
+        {!detail && !error && <div className="loading-block"><Spinner text="正在读取数据集"/></div>}
+
+        {detail?.dataset.kind === 'douyin' && <>
+            <h3 className="detail-subtitle">评论预览 <span>前 {detail.comments.length} 条</span></h3>
+            <div className="table-scroll"><table className="data-table"><thead><tr><th>时间(北京)</th><th>昵称</th><th>评论原文</th><th>IP属地</th><th>时间精度</th></tr></thead>
+                <tbody>{detail.comments.map(c => <tr key={c.id}>
+                    <td>{c.publishTimeIso ? new Date(c.publishTimeIso).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }).slice(0, 16) : '—'}</td>
+                    <td>{c.authorName || '—'}<small className="cell-secondary mono">{c.sourceAccountKey.slice(0, 14)}…</small></td>
+                    <td>{c.content}</td>
+                    <td>{c.ipRegion || '—'}</td>
+                    <td>{c.timePrecision === 'approximate' ? '近似' : c.timePrecision}</td>
+                </tr>)}</tbody></table></div>
+        </>}
+
+        {detail?.dataset.kind === 'coordination' && <>
+            <h3 className="detail-subtitle">线索预览 <span>按账号数排序,前 {detail.leads.length} 组</span></h3>
+            <div className="table-scroll"><table className="data-table"><thead><tr><th>线索</th><th>来源事件</th><th>账号数</th><th>评论数</th><th>最小相似度</th><th>复核状态</th></tr></thead>
+                <tbody>{detail.leads.map(l => <tr key={l.id}>
+                    <td><strong>{l.representative.slice(0, 20)}</strong><small className="cell-secondary mono">{l.id}</small></td>
+                    <td className="mono">{l.eventRef}</td>
+                    <td>{l.accountCount}</td>
+                    <td>{l.commentCount}</td>
+                    <td>{l.minSimilarity?.toFixed(4) ?? '—'}</td>
+                    <td><Badge kind={l.reviewStatus === 'confirmed' ? 'red' : l.reviewStatus === 'dismissed' ? 'teal' : 'amber'}>{l.reviewStatus === 'confirmed' ? '确认线索' : l.reviewStatus === 'dismissed' ? '排除线索' : l.reviewStatus === 'following' ? '保留观察' : '待复核'}</Badge></td>
+                </tr>)}</tbody></table></div>
+        </>}
+
+        {(detail?.dataset.kind === 'accounts' || !detail) && <>
+            <h3 className="detail-subtitle">账号预览 <span>前 {Math.min(rows.length, 8)} 条</span></h3>
+            <div className="table-scroll"><table className="data-table"><thead><tr><th>账号</th><th>平台</th><th>发帖数</th><th>注册天数</th><th>风险等级</th><th /></tr></thead>
+                <tbody>{rows.slice(0, 8).map(a => <tr key={a.id}><td><strong>{a.displayName}</strong><small className="cell-secondary">{a.accountId}</small></td><td>{a.platform}</td><td>{a.postsCount}</td><td>{a.accountAgeDays}</td><td><RiskBadge risk={a.riskLevel}/></td><td><button aria-label={'查看 ' + a.displayName} className="icon-button" onClick={() => onAccount(a)}><ChevronRight size={16}/></button></td></tr>)}</tbody></table></div>
+            {!rows.length && <Empty title="这个数据集没有账号记录" text="账号型数据集才提供账号预览与摸排任务。"/>}
+        </>}
+
+        <div className="modal-actions">
+            <button className="button" onClick={onClose}>关闭</button>
+            {detail?.dataset.kind === 'douyin' && <button className="button button-primary" onClick={() => onOpenPage('screening')}><ArrowRight size={16}/>去评论检测</button>}
+            {detail?.dataset.kind === 'coordination' && <button className="button button-primary" onClick={() => onOpenPage('leads')}><ArrowRight size={16}/>去协同线索</button>}
+            {canEdit && detail?.dataset.kind !== 'douyin' && detail?.dataset.kind !== 'coordination' && <button className="button button-primary" onClick={onTask}><Plus size={16}/>基于此数据集新建任务</button>}
+        </div>
+    </Modal>;
+}
+
 export function MemberModal({ onClose, onSuccess }: {
     onClose: () => void;
     onSuccess: (message: string) => Promise<void>;

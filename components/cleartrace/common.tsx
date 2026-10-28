@@ -19,10 +19,18 @@ export async function api<T>(path: string, body?: unknown, method?: string): Pro
             data: T;
             error?: {
                 message?: string;
+                code?: string;
             };
         };
-        if (!res.ok)
-            throw new Error(json.error?.message || `请求失败 (${res.status})`);
+        if (!res.ok) {
+            const failure = new Error(json.error?.message || `请求失败 (${res.status})`) as Error & {
+                status?: number;
+                code?: string;
+            };
+            failure.status = res.status;
+            failure.code = json.error?.code;
+            throw failure;
+        }
         return json.data as T;
     }
     catch (error) {

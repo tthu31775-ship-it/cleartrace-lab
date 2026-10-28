@@ -20,3 +20,13 @@
 @media(max-width:1280px){.integration-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-grid .integration-card:last-child:nth-child(3){grid-column:auto}}
 @media(max-width:640px){.integration-grid{grid-template-columns:1fr}.badge{font-size:11px}.connection-list .badge{font-size:10px}.model-name{font-size:13px}}
 .cancel-task-control{display:flex;align-items:center;gap:10px;margin-right:auto;font-size:12px;color:#ac8b70}.cancel-task-control>.text-link{font-size:12px}.cancel-task-control>.text-link:first-child{color:#a18c7e}@media(max-width:640px){.cancel-task-control{width:100%;margin-bottom:7px;font-size:11px}.cancel-task-control>.text-link{font-size:11px}}
+
+/* 数据集详情里的下载区 */
+.download-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0 6px;padding:14px 16px;border:1px dashed #dbe7ea;border-radius:8px;background:#fbfdfd;flex-wrap:wrap}
+.download-row .tiny-label{color:#7d949e}
+
+/* 能力卡:3 列均分 + 顶部对齐,5 张卡不会把最后一张拉成竖条 */
+.integration-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:start}
+.integration-grid .integration-card{height:100%}
+@media (max-width:1180px){.integration-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media (max-width:760px){.integration-grid{grid-template-columns:1fr!important}}

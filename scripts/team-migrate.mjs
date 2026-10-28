@@ -3,6 +3,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 if (process.argv.includes('--help')) {
@@ -10,14 +11,15 @@ if (process.argv.includes('--help')) {
   process.exit(0);
 }
 const root = process.cwd();
-const config = resolve(root, 'dist/server/wrangler.json');
+const config = process.env.CLEARTRACE_CONFIG ? resolve(root, process.env.CLEARTRACE_CONFIG) : resolve(root, 'dist/server/wrangler.json');
+const persistTo = process.env.CLEARTRACE_PERSIST_TO || '.wrangler/state';
 if (!existsSync(config)) throw new Error('Run npm run build before local migrations.');
 const manifest = JSON.parse(readFileSync(resolve(root, '.openai/hosting.json'), 'utf8'));
 if (manifest.d1 !== 'DB') throw new Error('Expected the documented DB binding; inspect .openai/hosting.json.');
 const journal = JSON.parse(readFileSync(resolve(root, 'drizzle/meta/_journal.json'), 'utf8'));
-const common = ['--import', resolve(root, 'scripts/sites-env.mjs'),
+const common = ['--import', pathToFileURL(resolve(root, 'scripts/sites-env.mjs')).href,
   resolve(root, 'node_modules/wrangler/bin/wrangler.js'), 'd1', 'execute', 'DB',
-  '--local', '--config', config, '--persist-to', '.wrangler/state', '--json'];
+  '--local', '--config', config, '--persist-to', persistTo, '--json'];
 function run(extra) {
   const result = spawnSync(process.execPath, [...common, ...extra], {
     cwd: root, encoding: 'utf8', env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },

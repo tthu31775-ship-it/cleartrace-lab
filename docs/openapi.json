@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "清源 ClearTrace API",
-    "version": "1.0.0",
-    "description": "Shared data/model integration contract. Application bearer tokens and Sites gateway access are separate. Browser calls use Sites sign-in plus application membership. Responses use {data}, except CSV export and this raw OpenAPI document. Synthetic examples and rule baseline are not trained-model evaluation results. InferenceRequest/InferenceResponse describe the external server protocol, not an endpoint hosted by ClearTrace."
+    "version": "1.2.0",
+    "description": "Shared data/model integration contract. Application bearer tokens and Sites gateway access are separate. Browser calls use Sites sign-in plus application membership. Responses use {data}, except CSV export and this raw OpenAPI document. Synthetic examples and rule baseline are not trained-model evaluation results. InferenceRequest/InferenceResponse describe the external server protocol, not an endpoint hosted by ClearTrace. 模型接入轮次新增协同线索、事件图谱、评论筛查与能力状态接口;WB01 分数与协同线索排序分是两种不同能力,不能合并成一个概率。 本轮补充:WB01 原始契约接口、新事件协同在线扫描、逐表/整库导出。"
   },
   "servers": [
     {
@@ -2025,6 +2025,751 @@
             "description": "Internal resource ID returned by this API, not external accountId."
           }
         ]
+      }
+    },
+    "/leads": {
+      "get": {
+        "summary": "协同线索分页列表",
+        "description": "预计算批次的候选线索。支持关键词、来源命名空间、复核状态、最少账号数筛选与排序。返回 stats 供页面头部使用。",
+        "tags": "协同线索",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "页码,从 1 开始",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "每页 5-100 条",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "关键词:代表评论 / 线索 ID / 事件定位",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "description": "来源命名空间:trend 或 verified",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "复核状态:pending/following/confirmed/dismissed",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minAccounts",
+            "in": "query",
+            "required": false,
+            "description": "最少账号数",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "排序:accounts/similarity/recent",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/leads/export": {
+      "get": {
+        "summary": "导出线索明细 CSV",
+        "description": "按当前筛选条件导出(最多 5000 条),包含运行批次、来源定位、复核记录与排序分口径。导出行为写入审计日志。",
+        "tags": "协同线索",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/leads/account": {
+      "get": {
+        "summary": "账号相关线索",
+        "description": "按来源账号键查询其出现的协同线索。只在本来源命名空间内匹配,不做跨平台合并。",
+        "tags": "协同线索",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "description": "来源账号键(如 inference_u0748269)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "description": "账号命名空间,默认 coordination",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/leads/{id}": {
+      "get": {
+        "summary": "线索详情",
+        "description": "返回成员表、原始评论、相似边与事件图谱路径。账号数与评论数分别计数。",
+        "tags": "协同线索",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/leads/{id}/review": {
+      "post": {
+        "summary": "协同线索人工复核",
+        "description": "写入复核状态与依据,记录复核人、时间与结果版本;不覆盖历史结论。",
+        "tags": [
+          "协同线索"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "note"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "following",
+                      "confirmed",
+                      "dismissed"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "事件列表",
+        "description": "事件/作品列表。batch 用于只看某个导入批次;douyin 批次里的作品同样以事件形式保存。",
+        "tags": "事件与图谱",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "页码",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "每页条数",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "description": "来源命名空间",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "query",
+            "required": false,
+            "description": "导入批次",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "事件定位关键词",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "summary": "事件详情",
+        "description": "返回事件元数据、该事件的线索列表与图谱边(回复边/相似边分开)。",
+        "tags": "事件与图谱",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/events/{id}/graph": {
+      "get": {
+        "summary": "事件图谱 JSON",
+        "description": "返回线索相关节点、回复边与群组相似边。需登录,不放静态目录。",
+        "tags": "事件与图谱",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/comments": {
+      "get": {
+        "summary": "评论检索",
+        "description": "按命名空间、数据集、关键词检索已入库评论。",
+        "tags": "评论与筛查",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "页码",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "每页条数",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "description": "来源命名空间(如 douyin / manual)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "datasetId",
+            "in": "query",
+            "required": false,
+            "description": "数据集 ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "内容 / 昵称 / 账号键关键词",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/screening/comments": {
+      "post": {
+        "summary": "WB01 评论文本筛查",
+        "description": "服务端调用 WB01 模型打分并落库。单次 1-200 条,单条 ≤1000 字;空文本与超长条目逐条报错(不写 0 分)。同一 (评论, 模型版本, 运行批次) 幂等。",
+        "tags": [
+          "评论与筛查"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "runId": {
+                    "type": "string",
+                    "description": "可选;重试时传同一个值可保证幂等"
+                  },
+                  "items": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "content"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        "commentId": {
+                          "type": "string"
+                        },
+                        "accountId": {
+                          "type": "string"
+                        },
+                        "authorName": {
+                          "type": "string"
+                        },
+                        "namespace": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/screening/predictions": {
+      "get": {
+        "summary": "筛查记录",
+        "description": "已落库的评论筛查结果,可按运行批次与标签筛选。",
+        "tags": "评论与筛查",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "返回条数,5-200",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "query",
+            "required": false,
+            "description": "运行批次",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "description": "water / normal / error",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/models/status": {
+      "get": {
+        "summary": "模型与能力状态",
+        "description": "区分 comment_classification / coordination_lookup / coordination_scan / account_bert / behavior_baseline 五种能力的状态、版本与契约入口。",
+        "tags": "模型能力",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/imports/douyin": {
+      "get": {
+        "summary": "抖音样本导入状态",
+        "description": "返回批次应有的 5/231/215 与实际入库数量。",
+        "tags": "评论与筛查",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "summary": "导入抖音小样本",
+        "description": "幂等导入 5 个作品、231 条评论、215 个账号。发布时间标记为 approximate,点赞标记为未采集。",
+        "tags": "评论与筛查",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/water-comment/predict": {
+      "post": {
+        "summary": "WB01 单条检测(交付包原始契约)",
+        "description": "与 wb01_api 包的 API_DOC 完全一致:{code:0,data:{comment_id,probability,label,risk_level,threshold,confidence,model_version,evidence,latency_ms}};错误为 {code,msg}。仅打分不落库,落库请用 /screening/comments。",
+        "tags": [
+          "评论与筛查"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "comment_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/water-comment/predict_batch": {
+      "post": {
+        "summary": "WB01 批量检测(≤200 条)",
+        "description": "逐条返回;空条目返回 {comment_id,error},不写 0 分。",
+        "tags": [
+          "评论与筛查"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "items"
+                ],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "type": "string"
+                        },
+                        "comment_id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/water-comment/model_info": {
+      "get": {
+        "summary": "WB01 模型信息",
+        "description": "模型版本、阈值、维度与训练集自评说明。",
+        "tags": [
+          "评论与筛查"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/coordination/scan": {
+      "post": {
+        "summary": "新事件协同在线扫描",
+        "description": "服务端跑协同算法并落库:事件、线索、成员、相似边、图谱 JSON。每次扫描是新 run,不覆盖历史。",
+        "tags": [
+          "事件与图谱"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "eventId",
+                  "comments"
+                ],
+                "properties": {
+                  "eventId": {
+                    "type": "string"
+                  },
+                  "datasetId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "comments": {
+                    "type": "array",
+                    "maxItems": 5000,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "accountId",
+                        "text",
+                        "publishTime"
+                      ],
+                      "properties": {
+                        "accountId": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "publishTime": {
+                          "type": "number"
+                        },
+                        "replyTo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "likeCount": {
+                          "type": "number",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "minAccounts": {
+                        "type": "number"
+                      },
+                      "windowMinutes": {
+                        "type": "number"
+                      },
+                      "similarityThreshold": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exports/summary": {
+      "get": {
+        "summary": "导出清单",
+        "description": "各业务表行数、体积与说明。",
+        "tags": [
+          "数据导出"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/exports/{table}": {
+      "get": {
+        "summary": "导出业务表",
+        "description": "table 取值:leads/comments/predictions/events/lead_members/graph_edges/accounts/datasets/tasks/reviews/audit_logs/scans;format=csv|json。",
+        "tags": [
+          "数据导出"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "parameters": [
+          {
+            "name": "table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "json"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/exports/backup": {
+      "get": {
+        "summary": "全库备份 JSON",
+        "description": "仅管理员。",
+        "tags": [
+          "数据导出"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/exports/schema": {
+      "get": {
+        "summary": "建表语句",
+        "description": "从 sqlite_master 导出实际 DDL。",
+        "tags": [
+          "数据导出"
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
       }
     }
   },
