@@ -1,4 +1,4 @@
-# 清源 ClearTrace：模型接入与试用版实测记录
+﻿# 清源 ClearTrace：模型接入与试用版实测记录
 
 > 按《ClearTrace 模型接入与试用版规划（第一轮）》执行的增量交付记录。所有数字来自真实执行，不是预期值。
 > 执行日期：2026-10-27（北京时间）
@@ -397,4 +397,90 @@ python scripts/verify-model-integration.py http://127.0.0.1:3100 admin@example.c
 3. **逐元素点击审计 `audit-ui.py` 本轮没跑出结果**：它在多页循环里长时间无输出（无浏览器进程、无 JSON 落盘），
    已中止。下次要么加 `-u` 看卡在哪一页，要么给每页加超时。其余验收不受影响。
 4. 前一轮列出的 P0（341 项短句词典、独立测试集）与 P1（账号 BERT 权重、全量事件图谱）依旧未动。
+
+---
+
+# 追加：第四轮（Git 入库 + 按钮全覆盖 + 能力口径修正）
+
+## 24. 仓库定型
+
+`ct\upstream` 是唯一仓库。本轮把打包快照里的改动同步回去，拆成 5 个主题提交，合并到 `main`，打 `v1.0.0`：
+
+```
+f8f196a feat(console): 模型自检、评论库与账号相关线索
+5fc6758 chore(data): 仓库内置脱敏示例数据，clone 后即可构建
+71a8f5b feat(tooling): 脱敏数据生成器与逐元素按钮审计
+9e2617c fix(verify): 区分登录前预期噪音与非预期错误
+d7c566f docs(report): 第三轮复核记录、功能地图与验收日志
+```
+
+两处仓库级修复：
+
+1. **`.gitignore` 被旧快照覆盖**：打包目录里那一份比仓库旧，少了 `lib/data/*.json` 与 `push-credential` 的忽略规则。已恢复仓库版本，并改成语义更清楚的注释（示例数据入库、真实数据不入库）。
+2. **仓库原本构建不起来**：`lib/server/coordination.ts` 静态 import 三个 `lib/data/*.json`，而这些文件被 ignore，CI 里 `npm run build` 必然失败。现在把**脱敏示例**入库（803/173/4519/5·231·215，正文与账号键已替换），clone 后不接算法包也能构建、能演示。
+
+实测：`tsc --noEmit` 0 错、`test-core` 51+9、`test-backend` 11/11、`npm run build` 25.4 秒。
+
+## 25. 按钮审计：工具自身有四个坑
+
+第一次跑 `audit-ui.py` 时它"卡死"，实际是脚本输出被 Python 缓冲 + 每个元素整页重载，185 个元素要一个多小时。修完四个坑才拿到可信结果：
+
+| 坑 | 现象 | 修法 |
+| --- | --- | --- |
+| 只改 hash 的 `goto` | 同文档导航，浏览器不重载，筛选后列表长度变了还按下标点 → 串位 | 需要重置时带变化的 query（`?reload=<page>-<n>`）真正重载 |
+| 整页重载过慢 | 15–20 秒/元素 | 只在"切页 / 列表长度变化 / 弹层关不掉"时重载，其余原地继续 |
+| 指纹采集太贵 | `inner_text('body')` 3 秒超时 + 全 DOM 遍历 | 改成页面内取 `innerText` 前 2000 字，一次 round-trip |
+| 判定维度不够 | 复制按钮、筛选按钮被误判"无反应" | 增加"写入剪贴板"与"选中态切换"两个信号 |
+
+另外加了一步**单独复核**：一路点下来没反应的元素，重新开一页只点它一次再判定，用来区分"按钮是死的"和"顺序点击的副作用"。
+
+结果（`docs/handoff/BUTTON_AUDIT.md`，本机真实数据）：
+
+- 可点元素 **208** 个，有反应 **208** 个，点击失败 0，接口报错 0；
+- 其中 **4** 个是"顺序点击时未触发、单独点击有反应"的导航按钮，报告里带标注。
+
+## 26. 能力口径修正（老师一眼能看出的矛盾）
+
+`GET /models/status` 里 `coordination_scan` 一直写着 `planned` / "当前不提供在线扫描入口"，但第二轮就把在线扫描做完了、页面上也有"事件扫描"。
+同一个页面上"未接入"和能跑的按钮并存，属于自相矛盾。已改为：
+
+| 字段 | 改前 | 改后 |
+| --- | --- | --- |
+| status | planned | **ready** |
+| version | — | online-1.0 |
+| detail | "缺 341 项词典，不提供入口" | 在线清洗 10 条短句 + 2/3-gram Jaccard + 10 分钟窗口 + 最少 5 账号，按独立 runId 落库，不生成回复边 |
+| contract | `POST /events/:id/scan(未启用)` | `POST /api/v1/coordination/scan` |
+
+`account_bert` 保持 `not_ready`（确实没有权重），接口 503、页面禁用态，不用 mock 分数充数。
+
+## 27. 登录失败限速（他们自己列的 P0）
+
+- 迁移 `0005_login_throttle.sql` + `login_attempts` 表；
+- 规则：同一「账号 + 来源地址」10 分钟内失败 10 次后，后续**错误**口令返回 429；
+- **正确口令永远放行**（只在口令错误时计数并在成功后清空），避免演示时连续输错把自己锁在门外；
+- 限速表缺失时（迁移未应用）降级为不限速，不把登录打成 500。
+
+验收脚本 `scripts/verify-auth-throttle.py`：6 项全过（单次 401 → 阈值内 401 → 达标 429 → 提示可读 → 正确口令 200 → 成功后计数清零）。
+
+## 28. 一条命令起站点
+
+`npm run demo`（`scripts/demo.mjs`）：Node 版本检查 → 端口占用检查 → 需要时构建（`--rebuild` 强制）→ 迁移 → 启动 → 打印地址与账号。
+实测：`PORT=3200 npm run demo` 起服务后 `/api/v1/health` 返回 `{"status":"ok","database":"connected"}`。
+
+## 29. 本轮文档
+
+| 文档 | 作用 |
+| --- | --- |
+| `docs/handoff/API_MATRIX.md` | 48 条接口 × 权限 / 校验 / 落库 / 审计 / 页面入口 |
+| `docs/handoff/BUTTON_AUDIT.md` | 逐按钮审计报告（自动生成） |
+| `docs/handoff/DEMO_SCRIPT.md` | 5 分钟答辩演示脚本 |
+| `docs/handoff/TECH_STACK.md` | 技术栈说明（含"为什么不用 Spring Boot/MySQL"） |
+| `docs/handoff/GIT_CHEATSHEET.md` | Git 一页命令与四个坑 |
+| `docs/openapi.json` | 1.2.0 → **1.3.0**，补 `/models/selfcheck`（45 条路径） |
+
+## 30. 线上地址
+
+`https://cleartrace-lab.app.workbuddy.host/?sharecode=OG2AYMRQZQ` 由使用者在 2026-10-28 确认**仍可访问**。
+本机解析该域名得到的是内网地址，所以本轮的 93 项验收、按钮审计都是在本地实例上做的；线上版本比本地落后两个提交，
+下次发布需要重新执行 `npm run build && node scripts/selfhost.mjs`（托管层不会自动构建）。
 

@@ -1,8 +1,9 @@
 # 清源 ClearTrace · 功能与后端对应表
 
 > 逐页核对：每个可点元素都走真实接口、都有落库或计算效果。没有"只在前端演一遍"的按钮。
-> 核对方式：`scripts/audit-ui.py` 在线上地址逐个点击 185 个可点元素，全部有反应（0 无反应、0 点击失败）；
-> 接口侧 `scripts/verify-model-integration.py` 93 项全过。核对时间 2026-10-27。
+> 核对方式：`scripts/audit-ui.py` 在本地实例逐个点击 **208** 个可点元素，全部有反应（0 无反应、0 点击失败、0 接口报错）；
+> 原始结果与逐元素明细见 `docs/handoff/BUTTON_AUDIT.md`。
+> 接口侧 `scripts/verify-model-integration.py` 93 项全过；登录限速另有 `scripts/verify-auth-throttle.py` 6 项。核对时间 2026-10-28。
 
 ## 0. 总览
 
