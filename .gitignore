@@ -54,13 +54,12 @@ __pycache__/
 # 自建部署运行期配置(不含秘密模板)
 selfhost.env
 
-# 算法包交付的线索/图谱原始文本(体积大且含评论原文)
-# 用 scripts/prepare-coordination-data.py 从算法包 outputs 重新生成:
+# lib/data/*.json
+# 仓库里内置的是**脱敏示例**（scripts/make-public-demo-data.py 生成）：正文/账号键/昵称/IP 全部替换，
+# 计数与结构不变，作用是 clone 之后不接算法包也能 npm run build 并演示 803 条线索。
+# 真实数据不要提交，用算法包重新生成：
 #   python scripts/prepare-coordination-data.py <cleartrace_algorithm_api>/outputs .
-# 抖音公开小样本同理:scripts/prepare-douyin-sample.py
-/lib/data/coordination.json
-/lib/data/graphs.json
-/lib/data/douyin-sample.json
+#   python scripts/prepare-douyin-sample.py <抖音数据集目录> lib/data/douyin-sample.json
 
 # 推送凭据兜底(正常情况不在仓库内)
 /.push-credential
