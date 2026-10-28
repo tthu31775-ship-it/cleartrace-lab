@@ -29,6 +29,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Validate backend import and scoring rules
         run: node scripts/test-backend.mjs
+      - name: Parity checks (WB01 weights + coordination scan)
+        run: node scripts/test-core.mjs
       - name: Validate inference protocol example
         run: python3 -m unittest discover -s examples/integrations -p 'test_*.py'
       - name: Build website and server
