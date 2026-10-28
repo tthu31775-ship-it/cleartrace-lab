@@ -132,8 +132,13 @@ check('预计算线索 803(与扫描结果分开)', stats.get('precomputedLeads'
 check('最大群组 58 账号', stats.get('maxAccounts') == 58, str(stats.get('maxAccounts')))
 check('列表分页返回 5 条', len(body.get('items', [])) == 5, str(len(body.get('items', []))))
 
-status, _, raw, _ = call('GET', '/leads?q=' + urllib.parse.quote('李睿 拓跋煜') + '&pageSize=5')
-check('代表评论可检索', status == 200 and payload(raw).get('data', {}).get('total', 0) >= 1)
+# 关键词取自本实例自己的代表评论：原始数据是「李睿 拓跋煜…」，脱敏包是「示例用户00001」，
+# 两种数据都能跑。以前的写法把真实昵称写死在脚本里，脱敏包必然误报。
+_, _, raw_lead, _ = call('GET', '/leads/lead_0001')
+lead_rep = (payload(raw_lead).get('data', {}).get('representative') or '').split()
+keyword = lead_rep[0] if lead_rep else ''
+status, _, raw, _ = call('GET', '/leads?q=' + urllib.parse.quote(keyword) + '&pageSize=5')
+check('代表评论可检索', status == 200 and keyword != '' and payload(raw).get('data', {}).get('total', 0) >= 1, keyword)
 
 status, _, raw, _ = call('GET', '/leads/lead_0001')
 lead = payload(raw).get('data', {})

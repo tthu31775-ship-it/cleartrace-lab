@@ -15,20 +15,36 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 console_errors: list[str] = []
 failed_requests: list[str] = []
+# 登录前页面会请求 /api/v1/bootstrap 拿当前会话，未登录必然 401。这是预期行为，
+# 不能算作“控制台错误”，否则验收脚本永远退出码 1（历史上就是这样被误判的）。
+pre_login_noise: list[str] = []
+STATE = {'logged_in': False}
+
+
+def _on_console(message) -> None:
+    if message.type != 'error':
+        return
+    (console_errors if STATE['logged_in'] else pre_login_noise).append(message.text)
+
+
+def _on_request_failed(request) -> None:
+    entry = f'{request.method} {request.url} :: {request.failure}'
+    (failed_requests if STATE['logged_in'] else pre_login_noise).append(entry)
 
 
 def main() -> int:
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={'width': 1440, 'height': 1000})
-        page.on('console', lambda m: console_errors.append(m.text) if m.type == 'error' else None)
-        page.on('requestfailed', lambda r: failed_requests.append(f'{r.method} {r.url} :: {r.failure}'))
+        page.on('console', _on_console)
+        page.on('requestfailed', _on_request_failed)
 
         page.goto(BASE, wait_until='networkidle')
         page.fill('#ct-email', 'admin@cleartrace.local')
         page.fill('#ct-password', 'ClearTrace2026')
         page.click('button[type=submit]')
         page.wait_for_selector('text=总览工作台', timeout=45000)
+        STATE['logged_in'] = True
         print('登录成功')
 
         # 协同线索
@@ -86,13 +102,16 @@ def main() -> int:
 
         browser.close()
 
-    print('\n控制台错误:', len(console_errors))
+    print('\n登录前预期噪音(未登录 bootstrap 401):', len(pre_login_noise))
+    print('控制台错误:', len(console_errors))
     for line in console_errors[:10]:
         print('  -', line[:200])
     print('失败请求:', len(failed_requests))
     for line in failed_requests[:10]:
         print('  -', line[:200])
-    return 0 if not console_errors and not failed_requests else 1
+    ok = not console_errors and not failed_requests
+    print('UI 验收:', '通过' if ok else '失败')
+    return 0 if ok else 1
 
 
 if __name__ == '__main__':
